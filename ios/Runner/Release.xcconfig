@@ -1,0 +1,24 @@
+// Generated build settings for the iOS release build
+// Xcode build settings reference:
+// https://help.apple.com/xcode/mac/12.0/en/Content/Reference/xcodebuild-1.html
+
+// Code signing
+CODE_SIGN_IDENTITY = iPhone Distribution
+CODE_SIGN_STYLE = Automatic
+PROVISIONING_PROFILE_SPECIFIER = 
+
+// Optimization
+SWIFT_OPTIMIZATION_LEVEL = -Owholemodule
+GCC_OPTIMIZATION_LEVEL = s
+STRIP_INSTALLED_PRODUCT = YES
+
+// Deployment
+IPHONEOS_DEPLOYMENT_TARGET = 12.0
+TARGETED_DEVICE_FAMILY = 1,2
+
+// Build options
+DEBUG_INFORMATION_FORMAT = dwarf-with-dsym
+ENABLE_BITCODE = NO
+
+// Include the Flutter build settings
+#include "Generated.xcconfig"
