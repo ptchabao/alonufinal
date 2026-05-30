@@ -24,6 +24,9 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // Provide Google Maps API key via project property `MAPS_API_KEY`
+        manifestPlaceholders["com.google.android.geo.API_KEY"] =
+            (project.findProperty("MAPS_API_KEY") as String?) ?: ""
     }
 
     signingConfigs {

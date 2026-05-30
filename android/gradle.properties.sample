@@ -1,0 +1,7 @@
+# Sample gradle.properties (DO NOT COMMIT your real keys)
+# Create a file at android/gradle.properties and add your real API key there.
+# Example:
+# MAPS_API_KEY=YOUR_GOOGLE_MAPS_API_KEY_HERE
+
+# Put the line below in your local android/gradle.properties (without the leading #)
+MAPS_API_KEY=YOUR_GOOGLE_MAPS_API_KEY_HERE

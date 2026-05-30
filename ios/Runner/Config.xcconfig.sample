@@ -1,0 +1,5 @@
+// Sample Xcode config (DO NOT COMMIT your real keys)
+// Copy this to ios/Runner/Config.xcconfig and add it to your Xcode project settings.
+// Then add Config.xcconfig to .gitignore.
+
+GMS_API_KEY = YOUR_GOOGLE_MAPS_API_KEY_HERE

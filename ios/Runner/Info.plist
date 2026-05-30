@@ -66,8 +66,8 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-    <!-- Google Maps API key -->
-    <key>GMSApiKey</key>
-    <string>YOUR_GOOGLE_MAPS_API_KEY_HERE</string>
+	<!-- Google Maps API key (set via Xcode build setting or Config.xcconfig) -->
+	<key>GMSApiKey</key>
+	<string>$(GMS_API_KEY)</string>
 </dict>
 </plist>
