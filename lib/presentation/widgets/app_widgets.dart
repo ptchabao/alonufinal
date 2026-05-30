@@ -15,6 +15,8 @@ class AppButton extends StatelessWidget {
   final double? width;
   final EdgeInsetsGeometry? padding;
   final bool isSmall;
+  final Color? backgroundColor;
+  final Color? foregroundColor;
 
   const AppButton({
     Key? key,
@@ -26,6 +28,8 @@ class AppButton extends StatelessWidget {
     this.width,
     this.padding,
     this.isSmall = false,
+    this.backgroundColor,
+    this.foregroundColor,
   }) : super(key: key);
 
   @override
@@ -43,21 +47,23 @@ class AppButton extends StatelessWidget {
           width: isSmall ? 16 : 20,
           child: CircularProgressIndicator(
             strokeWidth: 2,
-            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.onPrimary),
+            valueColor: AlwaysStoppedAnimation<Color>(
+              foregroundColor ?? AppColors.onPrimary,
+            ),
           ),
-        ) : (icon != null ? Icon(icon, size: isSmall ? 16 : 20) : const SizedBox.shrink()),
+        ) : (icon != null ? Icon(icon, size: isSmall ? 16 : 20, color: foregroundColor ?? AppColors.onPrimary) : const SizedBox.shrink()),
         label: Text(
           label,
           style: isSmall 
-              ? Theme.of(context).textTheme.labelMedium?.copyWith(color: AppColors.onPrimary)
-              : Theme.of(context).textTheme.titleMedium?.copyWith(color: AppColors.onPrimary),
+              ? Theme.of(context).textTheme.labelMedium?.copyWith(color: foregroundColor ?? AppColors.onPrimary)
+              : Theme.of(context).textTheme.titleMedium?.copyWith(color: foregroundColor ?? AppColors.onPrimary),
         ),
         style: ElevatedButton.styleFrom(
           padding: padding ?? defaultPadding,
-          backgroundColor: isEnabled ? AppColors.primary : AppColors.onSurfaceMuted,
-          foregroundColor: AppColors.onPrimary,
+          backgroundColor: isEnabled ? (backgroundColor ?? AppColors.primary) : AppColors.onSurfaceMuted,
+          foregroundColor: foregroundColor ?? AppColors.onPrimary,
           disabledBackgroundColor: AppColors.onSurfaceMuted.withOpacity(0.5),
-          disabledForegroundColor: AppColors.onPrimary.withOpacity(0.5),
+          disabledForegroundColor: (foregroundColor ?? AppColors.onPrimary).withOpacity(0.5),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(isSmall ? 8 : 12)),
           elevation: isEnabled ? 2 : 0,
         ),
@@ -74,6 +80,8 @@ class SecondaryButton extends StatelessWidget {
   final bool isEnabled;
   final IconData? icon;
   final double? width;
+  final Color? borderColor;
+  final Color? foregroundColor;
 
   const SecondaryButton({
     Key? key,
@@ -83,6 +91,8 @@ class SecondaryButton extends StatelessWidget {
     this.isEnabled = true,
     this.icon,
     this.width,
+    this.borderColor,
+    this.foregroundColor,
   }) : super(key: key);
 
   @override
@@ -91,20 +101,23 @@ class SecondaryButton extends StatelessWidget {
       width: width ?? double.infinity,
       child: OutlinedButton.icon(
         onPressed: isEnabled && !isLoading ? onPressed : null,
-        icon: isLoading ? const SizedBox(
+        icon: isLoading ? SizedBox(
           height: 20,
           width: 20,
           child: CircularProgressIndicator(
             strokeWidth: 2,
-            valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+            valueColor: AlwaysStoppedAnimation<Color>(foregroundColor ?? AppColors.primary),
           ),
-        ) : (icon != null ? Icon(icon) : const SizedBox.shrink()),
-        label: Text(label),
+        ) : (icon != null ? Icon(icon, color: foregroundColor ?? AppColors.primary) : const SizedBox.shrink()),
+        label: Text(
+          label,
+          style: TextStyle(color: foregroundColor ?? AppColors.primary),
+        ),
         style: OutlinedButton.styleFrom(
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-          foregroundColor: AppColors.primary,
+          foregroundColor: foregroundColor ?? AppColors.primary,
           side: BorderSide(
-            color: isEnabled ? AppColors.primary : AppColors.onSurfaceMuted,
+            color: isEnabled ? (borderColor ?? AppColors.primary) : AppColors.onSurfaceMuted,
             width: 1.5,
           ),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
