@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../data/models/artisan_model.dart';
@@ -411,6 +412,92 @@ class _ArtisanDetailScreenState extends ConsumerState<ArtisanDetailScreen>
                 ),
             ],
           ),
+          const SizedBox(height: 16),
+          Text('Contact', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              if (_extractEmail(artisan) != null)
+                Expanded(
+                  child: InkWell(
+                    onTap: () => _openEmail(context, email: _extractEmail(artisan)!),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceVariant,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.email, color: AppColors.primary),
+                          const SizedBox(width: 8),
+                          Flexible(child: Text(_extractEmail(artisan)!)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              if (_extractWhatsapp(artisan) != null) ...[
+                const SizedBox(width: 12),
+                Expanded(
+                  child: InkWell(
+                    onTap: () => _openWhatsApp(context, phone: _extractWhatsapp(artisan)!),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceVariant,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.chat, color: AppColors.primary),
+                          const SizedBox(width: 8),
+                          Flexible(child: Text(_extractWhatsapp(artisan)!)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Google Map preview
+          Builder(builder: (ctx) {
+            final lat = _extractLatitude(artisan);
+            final lng = _extractLongitude(artisan);
+            if (lat == null || lng == null) {
+              return const SizedBox.shrink();
+            }
+
+            final marker = Marker(
+              markerId: const MarkerId('artisan-location'),
+              position: LatLng(lat, lng),
+            );
+
+            return Container(
+              height: 200,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: AppColors.cardShadows,
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: GoogleMap(
+                  initialCameraPosition: CameraPosition(
+                    target: LatLng(lat, lng),
+                    zoom: 14,
+                  ),
+                  markers: {marker},
+                  zoomControlsEnabled: false,
+                  onTap: (_) async {
+                    final mapsUrl = Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng');
+                    await launchUrl(mapsUrl);
+                  },
+                ),
+              ),
+            );
+          }),
         ],
       ),
     );
@@ -716,6 +803,89 @@ class _ArtisanDetailScreenState extends ConsumerState<ArtisanDetailScreen>
         const SnackBar(content: Text('Impossible d’appeler cet artisan')),
       );
     }
+  }
+
+  Future<void> _openEmail(BuildContext context, {required String email}) async {
+    final normalized = email.trim();
+    if (normalized.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('E-mail indisponible')),
+      );
+      return;
+    }
+
+    final uri = Uri(scheme: 'mailto', path: normalized);
+    final launched = await launchUrl(uri);
+    if (!mounted) return;
+    if (!launched) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Impossible d’ouvrir le client e‑mail')),
+      );
+    }
+  }
+
+  Future<void> _openWhatsApp(BuildContext context, {required String phone}) async {
+    final normalized = phone.replaceAll(RegExp(r'[^0-9+]'), '');
+    if (normalized.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Numéro WhatsApp indisponible')),
+      );
+      return;
+    }
+
+    final uri = Uri.parse('https://wa.me/$normalized');
+    final launched = await launchUrl(uri);
+    if (!mounted) return;
+    if (!launched) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Impossible d’ouvrir WhatsApp')),
+      );
+    }
+  }
+
+  String? _extractEmail(dynamic artisan) {
+    if (artisan is ArtisanModel) {
+      return artisan.user.email;
+    }
+    if (artisan is Map<String, dynamic>) {
+      final user = artisan['user'];
+      if (user is Map<String, dynamic>) {
+        final email = user['email']?.toString().trim();
+        if (email != null && email.isNotEmpty) return email;
+      }
+      final email = artisan['email']?.toString().trim();
+      if (email != null && email.isNotEmpty) return email;
+    }
+    return null;
+  }
+
+  String? _extractWhatsapp(dynamic artisan) {
+    if (artisan is ArtisanModel) return artisan.whatsapp;
+    if (artisan is Map<String, dynamic>) {
+      final w = artisan['whatsapp']?.toString().trim();
+      if (w != null && w.isNotEmpty) return w;
+    }
+    return null;
+  }
+
+  double? _extractLatitude(dynamic artisan) {
+    if (artisan is ArtisanModel) return artisan.latitude;
+    if (artisan is Map<String, dynamic>) {
+      final v = artisan['latitude'] ?? artisan['lat'];
+      if (v is num) return v.toDouble();
+      if (v is String) return double.tryParse(v);
+    }
+    return null;
+  }
+
+  double? _extractLongitude(dynamic artisan) {
+    if (artisan is ArtisanModel) return artisan.longitude;
+    if (artisan is Map<String, dynamic>) {
+      final v = artisan['longitude'] ?? artisan['lng'];
+      if (v is num) return v.toDouble();
+      if (v is String) return double.tryParse(v);
+    }
+    return null;
   }
 
   void _handleQuoteRequest(
