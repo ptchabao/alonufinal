@@ -66,5 +66,8 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+    <!-- Google Maps API key -->
+    <key>GMSApiKey</key>
+    <string>YOUR_GOOGLE_MAPS_API_KEY_HERE</string>
 </dict>
 </plist>
