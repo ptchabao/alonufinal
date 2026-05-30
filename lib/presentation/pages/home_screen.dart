@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/app_colors.dart';
 import '../widgets/widgets.dart';
 import '../bloc/api_providers.dart';
@@ -20,10 +21,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   int _carouselIndex = 0;
   String _selectedCategoryId = '';
 
-  final List<String> bannerImages = [
-    'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=500&h=300&fit=crop',
-    'https://images.unsplash.com/photo-1552664730-d307ca884978?w=500&h=300&fit=crop',
-    'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=500&h=300&fit=crop',
+  final List<String> _fallbackAdImages = [
+    'assets/ads/WhatsApp Image 2026-05-30 at 1.32.44 PM.jpeg',
+    'assets/ads/WhatsApp Image 2026-05-30 at 1.32.45 PM.jpeg',
+    'assets/ads/WhatsApp Image 2026-05-30 at 1.32.45 PM(1).jpeg',
+    'assets/ads/WhatsApp Image 2026-05-30 at 1.32.46 PM.jpeg',
   ];
 
   @override
@@ -34,6 +36,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Image.asset(
+            'assets/images/logo.png',
+            fit: BoxFit.contain,
+          ),
+        ),
         title: Text(
           'ALONU',
           style: Theme.of(context).textTheme.headlineLarge?.copyWith(
@@ -44,16 +53,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         elevation: 0,
         backgroundColor: AppColors.background,
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Center(
-              child: AppBadge(
-                label: 'NEW',
-                backgroundColor: AppColors.accent,
-                textColor: Colors.white,
-                icon: Icons.notifications,
-              ),
-            ),
+          IconButton(
+            icon: const Icon(Icons.person),
+            color: AppColors.primary,
+            onPressed: () => context.push('/profile'),
+            tooltip: 'Profil',
           ),
         ],
       ),
@@ -89,69 +93,138 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             const SizedBox(height: 24),
 
             // Carousel
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: CarouselSlider(
-                options: CarouselOptions(
-                  height: 180,
-                  autoPlay: true,
-                  autoPlayInterval: const Duration(seconds: 5),
-                  autoPlayAnimationDuration: const Duration(milliseconds: 800),
-                  enlargeCenterPage: true,
-                  onPageChanged: (index, reason) {
-                    setState(() => _carouselIndex = index);
-                  },
-                ),
-                items: bannerImages.map((image) {
-                  return FadeInWidget(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        image: DecorationImage(
-                          image: NetworkImage(image),
-                          fit: BoxFit.cover,
+            ref.watch(advertisementsCarouselProvider).when(
+                  data: (ads) {
+                    if (ads.isEmpty) {
+                      return _buildLocalAdsCarousel();
+                    }
+
+                    final currentIndex = _carouselIndex.clamp(0, ads.length - 1);
+
+                    return Column(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: CarouselSlider(
+                            options: CarouselOptions(
+                              height: 180,
+                              autoPlay: true,
+                              autoPlayInterval: const Duration(seconds: 5),
+                              autoPlayAnimationDuration:
+                                  const Duration(milliseconds: 800),
+                              enlargeCenterPage: true,
+                              onPageChanged: (index, reason) {
+                                setState(() => _carouselIndex = index);
+                              },
+                            ),
+                            items: ads.map((ad) {
+                              final imageUrl =
+                                  (ad['imageUrl'] ?? '').toString();
+                              final secondaryImages =
+                                  (ad['secondaryImages'] as List<dynamic>?)
+                                      ?.map((e) => e.toString())
+                                      .where((e) => e.isNotEmpty)
+                                      .toList();
+                              final linkUrl = (ad['linkUrl'] ?? '').toString();
+                              final displayImage = imageUrl.isNotEmpty
+                                  ? imageUrl
+                                  : ((secondaryImages?.isNotEmpty == true)
+                                      ? secondaryImages!.first
+                                      : '');
+
+                              return GestureDetector(
+                                onTap: linkUrl.isNotEmpty
+                                    ? () => _openAdLink(context, linkUrl)
+                                    : null,
+                                child: FadeInWidget(
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(12),
+                                      image: displayImage.isNotEmpty
+                                          ? DecorationImage(
+                                              image: CachedNetworkImageProvider(
+                                                  displayImage),
+                                              fit: BoxFit.cover,
+                                            )
+                                          : null,
+                                      color: AppColors.surfaceVariant,
+                                    ),
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        gradient: AppColors.heroGradient,
+                                      ),
+                                      alignment: Alignment.center,
+                                      child: linkUrl.isNotEmpty
+                                          ? const Icon(
+                                              Icons.open_in_new,
+                                              size: 32,
+                                              color: Colors.white,
+                                            )
+                                          : const Padding(
+                                              padding: EdgeInsets.symmetric(
+                                                horizontal: 16,
+                                              ),
+                                              child: Text(
+                                                'Aucune publicité disponible',
+                                                textAlign: TextAlign.center,
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
                         ),
-                      ),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: AppColors.heroGradient,
-                        ),
-                        child: Center(
-                          child: ScalableButton(
-                            onPressed: () => context.push('/search'),
-                            child: ElevatedButton.icon(
-                              onPressed: () {},
-                              icon: const Icon(Icons.arrow_forward),
-                              label: const Text('Découvrir'),
+                        const SizedBox(height: 12),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List.generate(
+                            ads.length,
+                            (index) => Container(
+                              width: 8,
+                              height: 8,
+                              margin:
+                                  const EdgeInsets.symmetric(horizontal: 4),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: currentIndex == index
+                                    ? AppColors.primary
+                                    : AppColors.onSurfaceMuted
+                                        .withValues(alpha: 0.3),
+                              ),
                             ),
                           ),
                         ),
+                      ],
+                    );
+                  },
+                  loading: () => Container(
+                    height: 180,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      color: AppColors.surfaceVariant,
+                    ),
+                    child: const Center(child: AppLoadingIndicator()),
+                  ),
+                  error: (err, st) => Container(
+                    height: 180,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      color: AppColors.surfaceVariant,
+                    ),
+                    child: Center(
+                      child: Text(
+                        'Impossible de charger le carousel',
+                        style: TextStyle(color: AppColors.error),
                       ),
                     ),
-                  );
-                }).toList(),
-              ),
-            ),
-
-            // Carousel Indicators
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(
-                bannerImages.length,
-                (index) => Container(
-                  width: 8,
-                  height: 8,
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: _carouselIndex == index
-                        ? AppColors.primary
-                        : AppColors.onSurfaceMuted.withValues(alpha: 0.3),
                   ),
                 ),
-              ),
-            ),
             const SizedBox(height: 24),
 
             // Categories
@@ -648,6 +721,87 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
 
     return '';
+  }
+
+  Future<void> _openAdLink(BuildContext context, String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) {
+      _showSnackBar(context, 'Lien publicitaire invalide.');
+      return;
+    }
+
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!launched) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Impossible d\'ouvrir le lien.')),
+        );
+      }
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Impossible d\'ouvrir le lien.')),
+      );
+    }
+  }
+
+  void _showSnackBar(BuildContext context, String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  Widget _buildLocalAdsCarousel() {
+    return Column(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: CarouselSlider(
+            options: CarouselOptions(
+              height: 180,
+              autoPlay: true,
+              autoPlayInterval: const Duration(seconds: 5),
+              autoPlayAnimationDuration: const Duration(milliseconds: 800),
+              enlargeCenterPage: true,
+              onPageChanged: (index, reason) {
+                setState(() => _carouselIndex = index);
+              },
+            ),
+            items: _fallbackAdImages.map((assetPath) {
+              return FadeInWidget(
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    image: DecorationImage(
+                      image: AssetImage(assetPath),
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(
+            _fallbackAdImages.length,
+            (index) => Container(
+              width: 8,
+              height: 8,
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _carouselIndex == index
+                    ? AppColors.primary
+                    : AppColors.onSurfaceMuted.withValues(alpha: 0.3),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   void _showCourseApplicationSheet(BuildContext context, String courseTitle) {

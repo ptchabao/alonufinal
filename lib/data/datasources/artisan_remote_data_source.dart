@@ -1,7 +1,5 @@
 import 'package:dio/dio.dart';
 import '../../core/constants/app_constants.dart';
-import '../../core/network/dio_client.dart';
-import '../models/user_model.dart';
 import '../models/artisan_model.dart';
 
 abstract class ArtisanRemoteDataSource {
@@ -16,7 +14,8 @@ abstract class ArtisanRemoteDataSource {
   });
   Future<ArtisanModel> getArtisanDetail(String artisanId);
   Future<List<dynamic>> getProducts({int page = 1, int limit = 20});
-  Future<List<dynamic>> getPublicApprenticeshipAds();
+  Future<List<dynamic>> getPublicApprenticeshipAds({String? countryId});
+  Future<List<dynamic>> getCarouselAdvertisements({String? countryId});
   Future<dynamic> getProductDetail(String productId);
   Future<List<ArtisanModel>> searchArtisans(String query);
   Future<List<ArtisanModel>> filterArtisans({
@@ -24,6 +23,13 @@ abstract class ArtisanRemoteDataSource {
     String? location,
     double? minRating,
   });
+  // New endpoints
+  Future<ArtisanModel> updateArtisan(String artisanId, Map<String, dynamic> updateData);
+  Future<List<dynamic>> getStudentsByArtisan(String artisanId);
+  Future<dynamic> getStudentDetail(String studentId);
+  Future<dynamic> publishProduct(String artisanId, Map<String, dynamic> productData);
+  Future<List<dynamic>> getArtisanProducts(String artisanId, {int page = 1, int limit = 20});
+  Future<List<dynamic>> getArtisanOrders(String artisanId, {int page = 1, int limit = 20});
 }
 
 class ArtisanRemoteDataSourceImpl implements ArtisanRemoteDataSource {
@@ -175,16 +181,38 @@ class ArtisanRemoteDataSourceImpl implements ArtisanRemoteDataSource {
   }
 
   @override
-  Future<List<dynamic>> getPublicApprenticeshipAds() async {
+  Future<List<dynamic>> getPublicApprenticeshipAds({String? countryId}) async {
     try {
       final response = await dio.get(
         '${AppConstants.apiBaseUrl}${AppConstants.apprenticeshipAdsEndpoint}',
+        queryParameters: {
+          if (countryId != null && countryId.isNotEmpty) 'countryId': countryId,
+        },
       );
 
       if (response.statusCode == 200) {
         return _extractList(response.data);
       }
       throw Exception('Erreur lors du chargement des cours');
+    } on DioException catch (e) {
+      throw _handleDioException(e);
+    }
+  }
+
+  @override
+  Future<List<dynamic>> getCarouselAdvertisements({String? countryId}) async {
+    try {
+      final response = await dio.get(
+        '${AppConstants.apiBaseUrl}${AppConstants.advertisementsCarouselEndpoint}',
+        queryParameters: {
+          if (countryId != null && countryId.isNotEmpty) 'countryId': countryId,
+        },
+      );
+
+      if (response.statusCode == 200) {
+        return _extractList(response.data);
+      }
+      throw Exception('Erreur lors du chargement des publicités du carousel');
     } on DioException catch (e) {
       throw _handleDioException(e);
     }
@@ -253,6 +281,112 @@ class ArtisanRemoteDataSourceImpl implements ArtisanRemoteDataSource {
             .toList();
       }
       throw Exception('Erreur lors du filtrage');
+    } on DioException catch (e) {
+      throw _handleDioException(e);
+    }
+  }
+
+  @override
+  Future<ArtisanModel> updateArtisan(
+      String artisanId, Map<String, dynamic> updateData) async {
+    try {
+      final response = await dio.put(
+        '${AppConstants.apiBaseUrl}${AppConstants.artisansEndpoint}/$artisanId',
+        data: updateData,
+      );
+
+      if (response.statusCode == 200) {
+        final json = _extractJson(response.data) as Map<String, dynamic>?
+            ?? (response.data as Map<String, dynamic>);
+        return ArtisanModel.fromJson(json);
+      }
+      throw Exception('Erreur lors de la mise à jour de l\'artisan');
+    } on DioException catch (e) {
+      throw _handleDioException(e);
+    }
+  }
+
+  @override
+  Future<List<dynamic>> getStudentsByArtisan(String artisanId) async {
+    try {
+      final response = await dio.get(
+        '${AppConstants.apiBaseUrl}/students/artisan/$artisanId',
+      );
+
+      if (response.statusCode == 200) {
+        return _extractList(response.data);
+      }
+      throw Exception('Erreur lors du chargement des apprentis');
+    } on DioException catch (e) {
+      throw _handleDioException(e);
+    }
+  }
+
+  @override
+  Future<dynamic> getStudentDetail(String studentId) async {
+    try {
+      final response = await dio.get(
+        '${AppConstants.apiBaseUrl}/students/$studentId',
+      );
+
+      if (response.statusCode == 200) {
+        return _extractJson(response.data);
+      }
+      throw Exception('Apprenti non trouvé');
+    } on DioException catch (e) {
+      throw _handleDioException(e);
+    }
+  }
+
+  @override
+  Future<dynamic> publishProduct(
+      String artisanId, Map<String, dynamic> productData) async {
+    try {
+      final response = await dio.post(
+        '${AppConstants.apiBaseUrl}${AppConstants.productsEndpoint}/artisan/$artisanId',
+        data: productData,
+      );
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        return _extractJson(response.data) ?? response.data;
+      }
+      throw Exception('Erreur lors de la publication du produit');
+    } on DioException catch (e) {
+      throw _handleDioException(e);
+    }
+  }
+
+  @override
+  Future<List<dynamic>> getArtisanProducts(String artisanId,
+      {int page = 1, int limit = 20}) async {
+    try {
+      final response = await dio.get(
+        '${AppConstants.apiBaseUrl}${AppConstants.productsEndpoint}/artisan/$artisanId',
+        queryParameters: {'page': page, 'limit': limit},
+      );
+
+      if (response.statusCode == 200) {
+        return _extractList(response.data);
+      }
+      throw Exception('Erreur lors du chargement des produits de l\'artisan');
+    } on DioException catch (e) {
+      throw _handleDioException(e);
+    }
+  }
+
+  @override
+  Future<List<dynamic>> getArtisanOrders(String artisanId,
+      {int page = 1, int limit = 20}) async {
+    try {
+      final response = await dio.get(
+        '${AppConstants.apiBaseUrl}${AppConstants.ordersEndpoint}/artisan/$artisanId',
+        queryParameters: {'page': page, 'limit': limit},
+      );
+
+      if (response.statusCode == 200) {
+        return _extractList(response.data);
+      }
+      throw Exception('Erreur lors du chargement des commandes de l\'artisan');
     } on DioException catch (e) {
       throw _handleDioException(e);
     }

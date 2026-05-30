@@ -8,6 +8,7 @@ import '../../data/datasources/order_remote_data_source.dart';
 import '../../data/datasources/payment_remote_data_source.dart';
 import '../../data/models/artisan_model.dart';
 import '../../core/services/location_service.dart';
+import 'auth_provider.dart';
 
 // Dio Client Provider
 final dioProvider = Provider((ref) {
@@ -133,11 +134,25 @@ final apprenticeshipAdsProvider = FutureProvider.autoDispose<List<dynamic>>((
 ) async {
   final dataSource = ref.watch(artisanDataSourceProvider);
   try {
-    return await dataSource.getPublicApprenticeshipAds();
+    final countryId = ref.watch(authProvider).user?.countryId;
+    return await dataSource.getPublicApprenticeshipAds(countryId: countryId);
   } catch (e) {
     throw Exception('Erreur: ${e.toString()}');
   }
 });
+
+final advertisementsCarouselProvider = FutureProvider.autoDispose<List<dynamic>>(
+  (ref) async {
+    final dataSource = ref.watch(artisanDataSourceProvider);
+    final countryId = ref.watch(authProvider).user?.countryId;
+
+    try {
+      return await dataSource.getCarouselAdvertisements(countryId: countryId);
+    } catch (e) {
+      throw Exception('Erreur: ${e.toString()}');
+    }
+  },
+);
 
 final apprenticeshipAdDetailProvider = FutureProvider.autoDispose
     .family<dynamic, String>((ref, adId) async {

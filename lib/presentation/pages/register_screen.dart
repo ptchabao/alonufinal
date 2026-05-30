@@ -267,6 +267,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           return;
                         }
 
+                        if (_passwordController.text.trim().length < 6) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Le mot de passe doit contenir au moins 6 caractères',
+                              ),
+                            ),
+                          );
+                          return;
+                        }
+
                         final success = await ref
                             .read(authProvider.notifier)
                             .register(
@@ -278,9 +289,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                               telephone: _telephoneController.text,
                               role: _selectedRole,
                               countryId: countryId,
-                              workshopLocation: _selectedRole == 'ARTISAN'
-                                  ? _workshopLocationController.text.trim()
-                                  : null,
+                              workshopLocation: null,
                             );
 
                         if (success && mounted) {

@@ -95,6 +95,42 @@ final artisanDetailProvider =
   return dataSource.getArtisanDetail(artisanId);
 });
 
+// Provider for updating artisan (returns a callable function)
+final updateArtisanActionProvider = Provider<Future<ArtisanModel> Function(String, Map<String, dynamic>)>((ref) {
+  final dataSource = ref.watch(artisanRemoteDataSourceProvider);
+  return (String artisanId, Map<String, dynamic> data) => dataSource.updateArtisan(artisanId, data);
+});
+
+// Provider for getting students for an artisan
+final studentsByArtisanProvider = FutureProvider.family<List<dynamic>, String>((ref, artisanId) async {
+  final dataSource = ref.watch(artisanRemoteDataSourceProvider);
+  return dataSource.getStudentsByArtisan(artisanId);
+});
+
+// Provider for a single student detail
+final studentDetailProvider = FutureProvider.family<dynamic, String>((ref, studentId) async {
+  final dataSource = ref.watch(artisanRemoteDataSourceProvider);
+  return dataSource.getStudentDetail(studentId);
+});
+
+// Provider for publishing a product (callable)
+final publishProductActionProvider = Provider<Future<dynamic> Function(String, Map<String, dynamic>)>((ref) {
+  final dataSource = ref.watch(artisanRemoteDataSourceProvider);
+  return (String artisanId, Map<String, dynamic> productData) => dataSource.publishProduct(artisanId, productData);
+});
+
+// Provider for getting artisan products
+final artisanProductsProvider = FutureProvider.family<List<dynamic>, String>((ref, artisanId) async {
+  final dataSource = ref.watch(artisanRemoteDataSourceProvider);
+  return dataSource.getArtisanProducts(artisanId);
+});
+
+// Provider for getting artisan orders
+final artisanOrdersProvider = FutureProvider.family<List<dynamic>, String>((ref, artisanId) async {
+  final dataSource = ref.watch(artisanRemoteDataSourceProvider);
+  return dataSource.getArtisanOrders(artisanId);
+});
+
 // State notifier for managing filtering/sorting state
 class ArtisanFilterState {
   final String? selectedCategory;

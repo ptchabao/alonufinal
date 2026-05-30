@@ -21,7 +21,6 @@ class MainBottomNavBar extends StatelessWidget {
             icon: Icon(Icons.shopping_bag),
             label: 'Commandes',
           ),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profil'),
         ],
       ),
     );
@@ -43,9 +42,6 @@ class MainBottomNavBar extends StatelessWidget {
     if (location.startsWith('/orders')) {
       return 3;
     }
-    if (location.startsWith('/profile')) {
-      return 4;
-    }
     return 0;
   }
 
@@ -62,9 +58,6 @@ class MainBottomNavBar extends StatelessWidget {
         break;
       case 3:
         GoRouter.of(context).go('/orders');
-        break;
-      case 4:
-        GoRouter.of(context).go('/profile');
         break;
     }
   }

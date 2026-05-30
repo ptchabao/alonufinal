@@ -616,17 +616,49 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 24),
 
+                  // ===== ARTISAN SECTION =====
+                  if (authState.user?.role.name == 'ARTISAN') ...
+                    [
+                      Text(
+                        'Mon Espace Artisan',
+                        style: Theme.of(context).textTheme.headlineSmall,
+                      ),
+                      const SizedBox(height: 12),
+                      _ProfileMenuItem(
+                        icon: Icons.edit_outlined,
+                        title: 'Modifier mon profil',
+                        onTap: () => context.push('/artisan-profile?tab=0'),
+                      ),
+                      _ProfileMenuItem(
+                        icon: Icons.shopping_cart_outlined,
+                        title: 'Mes Produits & Services',
+                        onTap: () => context.push('/artisan-profile?tab=2'),
+                      ),
+                      _ProfileMenuItem(
+                        icon: Icons.people_outline,
+                        title: 'Mes Apprentis',
+                        onTap: () => context.push('/artisan-profile?tab=1'),
+                      ),
+                      _ProfileMenuItem(
+                        icon: Icons.receipt_long_outlined,
+                        title: 'Mes Commandes',
+                        onTap: () => context.push('/artisan-profile?tab=3'),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+
                   // ===== ACTIONS SECTION =====
                   Text(
                     'Paramètres',
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
                   const SizedBox(height: 12),
-                  _ProfileMenuItem(
-                    icon: Icons.shopping_bag_outlined,
-                    title: 'Mes Commandes',
-                    onTap: () => context.push('/orders'),
-                  ),
+                  if (authState.user?.role.name != 'ARTISAN')
+                    _ProfileMenuItem(
+                      icon: Icons.shopping_bag_outlined,
+                      title: 'Mes Commandes',
+                      onTap: () => context.push('/orders'),
+                    ),
                   _ProfileMenuItem(
                     icon: Icons.favorite_border,
                     title: 'Favoris',

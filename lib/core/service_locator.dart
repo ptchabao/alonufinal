@@ -3,9 +3,10 @@ import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../data/datasources/auth_remote_data_source.dart';
-import '../data/repositories/artisan_repository_impl.dart';
 import '../data/repositories/auth_repository_impl.dart';
 import '../data/repositories/order_repository_impl.dart';
+import '../data/repositories/artisan_remote_repository_impl.dart';
+import '../data/datasources/artisan_remote_data_source.dart';
 import '../domain/repositories/artisan_repository.dart';
 import '../domain/repositories/auth_repository.dart';
 import '../domain/repositories/order_repository.dart';
@@ -42,6 +43,11 @@ void setupServiceLocator() {
     AuthRemoteDataSourceImpl(getIt<Dio>()),
   );
 
+  // Register artisan remote datasource for repository wiring
+  getIt.registerSingleton<ArtisanRemoteDataSource>(
+    ArtisanRemoteDataSourceImpl(getIt<Dio>()),
+  );
+
   getIt.registerSingleton<AuthLocalDataSource>(
     AuthLocalDataSourceImpl(),
   );
@@ -62,8 +68,13 @@ void setupServiceLocator() {
     ),
   );
 
-  getIt.registerSingleton<ArtisanRepository>(ArtisanRepositoryImpl());
-  getIt.registerSingleton<ProductRepository>(ProductRepositoryImpl());
+  // Replace mock repositories with remote implementations wired to datasources
+  getIt.registerSingleton<ArtisanRepository>(
+    ArtisanRemoteRepositoryImpl(getIt<ArtisanRemoteDataSource>()),
+  );
+  getIt.registerSingleton<ProductRepository>(
+    RemoteProductRepositoryImpl(getIt<ArtisanRemoteDataSource>()),
+  );
   getIt.registerSingleton<OrderRepository>(OrderRepositoryImpl());
   getIt.registerSingleton<PaymentRepository>(PaymentRepositoryImpl());
 

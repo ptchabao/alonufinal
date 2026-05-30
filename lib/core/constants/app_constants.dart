@@ -12,6 +12,7 @@ class AppConstants {
   static const String productsEndpoint = '/products';
   static const String ordersEndpoint = '/orders';
   static const String paymentsEndpoint = '/payments';
+  static const String advertisementsCarouselEndpoint = '/advertisements/carousel';
   static const String apprenticeshipAdsEndpoint =
       '/advertisements/apprenticeship/public';
   static const String countriesEndpoint = '/countries';

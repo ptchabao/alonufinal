@@ -219,16 +219,24 @@ class RegisterRequestModel {
     );
   }
 
-  Map<String, dynamic> toJson() => <String, dynamic>{
-    'username': username,
-    'email': email,
-    'password': password,
-    'nom': nom,
-    'prenom': prenom,
-    'telephone': telephone,
-    'role': role,
-    'countryId': countryId,
-    'referralCode': referralCode,
-    'workshopLocation': workshopLocation,
-  };
+  Map<String, dynamic> toJson() {
+    final Map<String, dynamic> data = {
+      'username': username,
+      'email': email,
+      'password': password,
+      'nom': nom,
+      'prenom': prenom,
+      'telephone': telephone,
+      'role': role,
+      'countryId': countryId,
+    };
+
+    if (referralCode != null && referralCode!.isNotEmpty) {
+      data['referralCode'] = referralCode;
+    }
+
+    // The auth/register endpoint does not accept a workshopLocation property.
+    // Location is handled later in the artisan profile flow.
+    return data;
+  }
 }

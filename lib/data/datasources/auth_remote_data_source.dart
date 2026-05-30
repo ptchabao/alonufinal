@@ -9,7 +9,7 @@ import '../../core/constants/app_constants.dart';
 
 abstract class AuthRemoteDataSource {
   Future<AuthResponseModel> login(String identifier, String password);
-  Future<UserModel> register({
+  Future<AuthResponseModel> register({
     required String username,
     required String email,
     required String password,
@@ -50,7 +50,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   }
 
   @override
-  Future<UserModel> register({
+  Future<AuthResponseModel> register({
     required String username,
     required String email,
     required String password,
@@ -79,17 +79,15 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         ).toJson(),
       );
 
-      final responseData = response.data;
-      final nestedUser = responseData is Map && responseData['user'] != null
-          ? responseData['user']
-          : responseData;
-      final userJson = nestedUser is Map<String, dynamic>
-          ? nestedUser
-          : (nestedUser is Map
-                ? Map<String, dynamic>.from(nestedUser)
-                : <String, dynamic>{});
+      // Log server response for easier debugging
+      try {
+        debugPrint('>>> RESPONSE STATUS: ${response.statusCode}');
+        debugPrint('>>> RESPONSE DATA: ${response.data}');
+      } catch (_) {}
 
-      return UserModel.fromJson(userJson);
+      return AuthResponseModel.fromJson(
+        (response.data as Map<String, dynamic>),
+      );
     } on DioException catch (e) {
       throw _handleDioException(e);
     }

@@ -132,7 +132,10 @@ class AppRouter {
         GoRoute(
           path: '/artisan-profile',
           name: AppRoute.artisanProfile.name,
-          builder: (context, state) => const ArtisanProfileEditScreen(),
+          builder: (context, state) {
+            final tab = int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
+            return ArtisanProfileEditScreen(initialTabIndex: tab);
+          },
         ),
         GoRoute(
           path: '/student-profile',

@@ -95,7 +95,17 @@ class AuthRepositoryImpl implements AuthRepository {
         workshopLocation: workshopLocation,
       );
 
-      return Right(result);
+      await secureStorage.write(
+        key: AppConstants.tokenKey,
+        value: result.accessToken,
+      );
+      await secureStorage.write(
+        key: AppConstants.refreshTokenKey,
+        value: result.refreshToken,
+      );
+      await localDataSource.saveUser(result.user);
+
+      return Right(result.user);
     } catch (e) {
       // NEVER use offline mode for registration - security critical!
       // 400 = validation error, 409 = email/username already exists

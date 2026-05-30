@@ -836,11 +836,37 @@ class _ArtisanDetailScreenState extends ConsumerState<ArtisanDetailScreen>
   }
 
   String? _extractWhatsapp(dynamic artisan) {
-    if (artisan is ArtisanModel) return artisan.whatsapp;
+    String? whatsapp;
+
+    if (artisan is ArtisanModel) {
+      whatsapp = artisan.whatsapp?.toString().trim();
+      if (whatsapp != null && whatsapp.isNotEmpty) {
+        return whatsapp;
+      }
+      final telephone = artisan.telephone.toString().trim();
+      return telephone.isNotEmpty ? telephone : null;
+    }
+
     if (artisan is Map<String, dynamic>) {
       final w = artisan['whatsapp']?.toString().trim();
-      if (w != null && w.isNotEmpty) return w;
+      if (w != null && w.isNotEmpty) {
+        return w;
+      }
+
+      final user = artisan['user'];
+      if (user is Map<String, dynamic>) {
+        final phone = user['telephone']?.toString().trim();
+        if (phone != null && phone.isNotEmpty) {
+          return phone;
+        }
+      }
+
+      final telephone = artisan['telephone']?.toString().trim();
+      if (telephone != null && telephone.isNotEmpty) {
+        return telephone;
+      }
     }
+
     return null;
   }
 
