@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/service_locator.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/datasources/auth_remote_data_source.dart';
 import '../../data/models/artisan_model.dart';
@@ -78,6 +79,32 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     super.dispose();
   }
 
+  Future<void> _captureWorkshopGps() async {
+    try {
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Permission de localisation refusée')),
+        );
+        return;
+      }
+
+      final pos = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.best);
+      _workshopLocationController.text = '${pos.latitude},${pos.longitude}';
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Impossible de récupérer la position: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
@@ -136,6 +163,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
               value: _selectedRole,
+              isExpanded: true,
               items: ['CLIENT', 'ARTISAN', 'STUDENT']
                   .map(
                     (role) => DropdownMenuItem(value: role, child: Text(role)),
@@ -146,6 +174,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   _selectedRole = value ?? 'CLIENT';
                   if (_selectedRole != 'ARTISAN') {
                     _workshopLocationController.clear();
+                  }
+                  if (_selectedRole == 'ARTISAN') {
+                    _captureWorkshopGps();
                   }
                 });
               },
@@ -158,12 +189,24 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             ),
             if (_selectedRole == 'ARTISAN') ...[
               const SizedBox(height: 16),
-              TextField(
-                controller: _workshopLocationController,
-                decoration: const InputDecoration(
-                  hintText: 'Localisation de l\'atelier',
-                ),
-                maxLines: 2,
+              // show captured GPS coordinates and allow refresh
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _workshopLocationController,
+                      decoration: const InputDecoration(
+                        hintText: 'Localisation de l\'atelier (lat,lng)',
+                      ),
+                      readOnly: true,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: _captureWorkshopGps,
+                    child: const Text('Utiliser ma position'),
+                  ),
+                ],
               ),
             ],
             const SizedBox(height: 16),
@@ -184,6 +227,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               )
             else
               DropdownButtonFormField<String>(
+                isExpanded: true,
                 value: _selectedCountryId,
                 items: _countries.map((country) {
                   final label = country.nameFr.isNotEmpty

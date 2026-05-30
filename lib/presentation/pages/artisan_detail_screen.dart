@@ -417,48 +417,20 @@ class _ArtisanDetailScreenState extends ConsumerState<ArtisanDetailScreen>
           const SizedBox(height: 8),
           Row(
             children: [
+              if (_extractWhatsapp(artisan) != null)
+                IconButton(
+                  icon: const Icon(Icons.chat),
+                  color: AppColors.primary,
+                  onPressed: () => _openWhatsApp(context, phone: _extractWhatsapp(artisan)!),
+                  tooltip: 'WhatsApp',
+                ),
               if (_extractEmail(artisan) != null)
-                Expanded(
-                  child: InkWell(
-                    onTap: () => _openEmail(context, email: _extractEmail(artisan)!),
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceVariant,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.email, color: AppColors.primary),
-                          const SizedBox(width: 8),
-                          Flexible(child: Text(_extractEmail(artisan)!)),
-                        ],
-                      ),
-                    ),
-                  ),
+                IconButton(
+                  icon: const Icon(Icons.email),
+                  color: AppColors.primary,
+                  onPressed: () => _openEmail(context, email: _extractEmail(artisan)!),
+                  tooltip: 'Email',
                 ),
-              if (_extractWhatsapp(artisan) != null) ...[
-                const SizedBox(width: 12),
-                Expanded(
-                  child: InkWell(
-                    onTap: () => _openWhatsApp(context, phone: _extractWhatsapp(artisan)!),
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceVariant,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.chat, color: AppColors.primary),
-                          const SizedBox(width: 8),
-                          Flexible(child: Text(_extractWhatsapp(artisan)!)),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
             ],
           ),
           const SizedBox(height: 16),
