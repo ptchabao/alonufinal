@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
+import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/artisan_model.dart';
 import '../bloc/api_providers.dart';
@@ -249,6 +250,14 @@ class _ArtisanDetailScreenState extends ConsumerState<ArtisanDetailScreen>
                               ),
                             ),
                           ],
+                        ),
+                        const SizedBox(height: 8),
+                        AppTextButton(
+                          label: 'Faire un don à cet artisan',
+                          icon: Icons.volunteer_activism_outlined,
+                          onPressed: () => context.push(
+                            '/donation?recipientType=ARTISAN&recipientId=${widget.artisanId}&recipientLabel=${Uri.encodeComponent(artisanName)}',
+                          ),
                         ),
                       ],
                     ),
@@ -745,10 +754,12 @@ class _ArtisanDetailScreenState extends ConsumerState<ArtisanDetailScreen>
     if (rawImages is List) {
       for (final image in rawImages) {
         if (image is Map && image['url'] != null) {
-          return image['url'].toString();
+          return AppConstants.resolveMediaUrl(image['url'].toString()) ??
+              'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=300&h=300&fit=crop';
         }
         if (image is String && image.isNotEmpty) {
-          return image;
+          return AppConstants.resolveMediaUrl(image) ??
+              'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=300&h=300&fit=crop';
         }
       }
     }

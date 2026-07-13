@@ -25,6 +25,7 @@ abstract class AuthRemoteDataSource {
   Future<AuthResponseModel> refreshToken(String refreshToken);
   Future<void> changePassword(String currentPassword, String newPassword);
   Future<UserModel> getCurrentUser();
+  Future<UserModel> updateUser(String userId, Map<String, dynamic> data);
 }
 
 class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
@@ -162,6 +163,19 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         '${AppConstants.apiBaseUrl}${AppConstants.getUserEndpoint}',
       );
       return UserModel.fromJson(response.data);
+    } on DioException catch (e) {
+      throw _handleDioException(e);
+    }
+  }
+
+  @override
+  Future<UserModel> updateUser(String userId, Map<String, dynamic> data) async {
+    try {
+      final response = await dio.put(
+        '${AppConstants.apiBaseUrl}/users/$userId',
+        data: data,
+      );
+      return UserModel.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
       throw _handleDioException(e);
     }

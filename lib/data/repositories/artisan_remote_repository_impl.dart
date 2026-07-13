@@ -1,5 +1,6 @@
 import 'package:dartz/dartz.dart';
 
+import '../../core/constants/app_constants.dart';
 import '../../core/errors/failure.dart';
 import '../../domain/entities/artisan.dart';
 import '../../domain/repositories/artisan_repository.dart';
@@ -12,8 +13,26 @@ class ArtisanRemoteRepositoryImpl implements ArtisanRepository {
 
   @override
   Future<Either<Failure, Artisan>> createArtisan(Artisan artisan) async {
-    // Not implemented on remote yet
-    return Left(NotFoundFailure(message: 'Création d\'artisan non prise en charge'));
+    try {
+      final payload = {
+        'userId': artisan.userId,
+        'numeroEnr': artisan.numeroEnr,
+        'telephone': artisan.telephone,
+        if (artisan.adresse != null) 'adresse': artisan.adresse,
+        if (artisan.latitude != null) 'latitude': artisan.latitude,
+        if (artisan.longitude != null) 'longitude': artisan.longitude,
+        'countryId': artisan.countryId,
+        if (artisan.facebook != null) 'facebook': artisan.facebook,
+        if (artisan.whatsapp != null) 'whatsapp': artisan.whatsapp,
+        if (artisan.twitter != null) 'twitter': artisan.twitter,
+        if (artisan.instagram != null) 'instagram': artisan.instagram,
+        'subCategoryIds': artisan.subCategories.map((sc) => sc.subCategoryId).toList(),
+      };
+      final created = await remote.createArtisan(payload);
+      return Right(created.toEntity());
+    } catch (e) {
+      return Left(ServerFailure(message: e.toString()));
+    }
   }
 
   @override
@@ -61,23 +80,43 @@ class ArtisanRemoteRepositoryImpl implements ArtisanRepository {
 
   @override
   Future<Either<Failure, Realisation>> addRealisation(String artisanId, Realisation realisation) async {
-    // Not implemented remote
-    return Left(NotFoundFailure(message: 'Ajout de réalisation non disponible')); 
+    try {
+      final payload = {
+        'libelle': realisation.title,
+        if (realisation.description != null) 'description': realisation.description,
+        'images': realisation.imageUrls,
+      };
+      final created = await remote.addRealisation(artisanId, payload);
+      return Right(created.toEntity());
+    } catch (e) {
+      return Left(ServerFailure(message: e.toString()));
+    }
   }
 
   @override
   Future<Either<Failure, List<Realisation>>> getRealisations(String artisanId) async {
-    // Not implemented remote
-    return Right([]);
+    try {
+      final list = await remote.getRealisations(artisanId);
+      return Right(list.map((m) => m.toEntity()).toList());
+    } catch (e) {
+      return Left(ServerFailure(message: e.toString()));
+    }
   }
 
   @override
   Future<Either<Failure, Artisan>> updateArtisan(Artisan artisan) async {
     try {
+      // UpdateArtisanDto ne porte que les champs artisan (nom/prénom vivent sur
+      // l'utilisateur et se mettent à jour via PUT /users/{id}, cf. UserRepository.updateUser).
       final payload = {
-        'user': {'nom': artisan.user.nom, 'prenom': artisan.user.prenom},
         'telephone': artisan.telephone,
-        'adresse': artisan.adresse,
+        if (artisan.adresse != null) 'adresse': artisan.adresse,
+        if (artisan.latitude != null) 'latitude': artisan.latitude,
+        if (artisan.longitude != null) 'longitude': artisan.longitude,
+        if (artisan.facebook != null) 'facebook': artisan.facebook,
+        if (artisan.whatsapp != null) 'whatsapp': artisan.whatsapp,
+        if (artisan.twitter != null) 'twitter': artisan.twitter,
+        if (artisan.instagram != null) 'instagram': artisan.instagram,
       };
       final updated = await remote.updateArtisan(artisan.id, payload);
       return Right(updated.toEntity());
@@ -88,8 +127,12 @@ class ArtisanRemoteRepositoryImpl implements ArtisanRepository {
 
   @override
   Future<Either<Failure, void>> deleteRealisation(String artisanId, String realisationId) async {
-    // Not implemented remote
-    return const Right(null);
+    try {
+      await remote.deleteRealisation(artisanId, realisationId);
+      return const Right(null);
+    } catch (e) {
+      return Left(ServerFailure(message: e.toString()));
+    }
   }
 }
 
@@ -116,8 +159,12 @@ class RemoteProductRepositoryImpl implements ProductRepository {
 
   @override
   Future<Either<Failure, void>> deleteProduct(String productId) async {
-    // Not implemented remote
-    return const Right(null);
+    try {
+      await remote.deleteProduct(productId);
+      return const Right(null);
+    } catch (e) {
+      return Left(ServerFailure(message: e.toString()));
+    }
   }
 
   @override
@@ -154,14 +201,31 @@ class RemoteProductRepositoryImpl implements ProductRepository {
 
   @override
   Future<Either<Failure, Product>> updateProduct(Product product) async {
-    // Not implemented remote
-    return Left(NotFoundFailure(message: 'Mise à jour produit non implémentée'));
+    try {
+      final payload = {
+        'title': product.title,
+        if (product.description != null) 'description': product.description,
+        'price': product.price,
+        'currency': product.currency,
+        'isService': product.type == ProductType.SERVICE,
+        'active': product.active,
+        'imageUrls': product.imageUrls,
+      };
+      final updated = await remote.updateProduct(product.id, payload);
+      return Right(_mapToProduct(updated));
+    } catch (e) {
+      return Left(ServerFailure(message: e.toString()));
+    }
   }
 
   @override
   Future<Either<Failure, void>> toggleProductActive(String productId) async {
-    // Not implemented
-    return const Right(null);
+    try {
+      await remote.toggleProductActive(productId);
+      return const Right(null);
+    } catch (e) {
+      return Left(ServerFailure(message: e.toString()));
+    }
   }
 
   Product _mapToProduct(Map<String, dynamic> map) {
@@ -172,17 +236,17 @@ class RemoteProductRepositoryImpl implements ProductRepository {
       description: map['description']?.toString(),
       price: double.tryParse(map['price']?.toString() ?? '0') ?? 0,
       currency: map['currency']?.toString() ?? 'XOF',
-      type: (() {
-        final t = map['type']?.toString();
-        return (t != null && t.toLowerCase() == 'service') ? ProductType.SERVICE : ProductType.PRODUCT;
-      })(),
+      type: (map['isService'] as bool? ?? false) ? ProductType.SERVICE : ProductType.PRODUCT,
       active: map['active'] as bool? ?? true,
-        imageUrls: (map['images'] is List)
-          ? List<String>.from((map['images'] as List).map((e) => e.toString()))
+      imageUrls: (map['images'] is List)
+          ? List<String>.from((map['images'] as List).map((e) =>
+              AppConstants.resolveMediaUrl(
+                  e is Map ? (e['url']?.toString() ?? '') : e.toString()) ?? ''))
           : (map['imageUrls'] is List)
-            ? List<String>.from((map['imageUrls'] as List).map((e) => e.toString()))
-            : [],
-      views: map['views'] as int? ?? 0,
+              ? List<String>.from((map['imageUrls'] as List)
+                  .map((e) => AppConstants.resolveMediaUrl(e.toString()) ?? ''))
+              : [],
+      views: map['viewsCount'] as int? ?? map['views'] as int? ?? 0,
       createdAt: DateTime.tryParse(map['createdAt']?.toString() ?? '') ?? DateTime.now(),
     );
   }

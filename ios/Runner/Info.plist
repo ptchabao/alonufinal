@@ -69,5 +69,10 @@
 	<!-- Google Maps API key (set via Xcode build setting or Config.xcconfig) -->
 	<key>GMSApiKey</key>
 	<string>$(GMS_API_KEY)</string>
+	<!-- Utilisé par geolocator (recherche d'artisans à proximité) -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>ALONU a besoin de votre position pour trouver les artisans à proximité de vous.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>ALONU a besoin de votre position pour trouver les artisans à proximité de vous.</string>
 </dict>
 </plist>

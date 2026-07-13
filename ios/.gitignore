@@ -27,6 +27,9 @@ Flutter/flutter_export_environment.sh
 ServiceDefinitions.json
 Runner/GeneratedPluginRegistrant.*
 
+# Clé Google Maps locale (voir Runner/Config.xcconfig.sample) — ne jamais committer.
+Runner/Config.xcconfig
+
 # Exceptions to above rules.
 !default.mode1v3
 !default.mode2v3

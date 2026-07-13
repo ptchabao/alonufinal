@@ -4,8 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-class MockAuthNotifier extends StateNotifier<AuthState> {
-  MockAuthNotifier() : super(AuthState());
+class MockAuthNotifier extends AuthNotifier {
+  @override
+  Future<void> checkAuthentication() async {
+    // No-op: avoid hitting the real getIt-backed use case in this widget test.
+  }
 }
 
 void main() {

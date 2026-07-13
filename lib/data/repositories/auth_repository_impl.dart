@@ -287,8 +287,16 @@ class UserRepositoryImpl implements UserRepository {
   @override
   Future<Either<Failure, User>> updateUser(User user) async {
     try {
-      await localDataSource.saveUser(UserModel.fromEntity(user));
-      return Right(user);
+      final updated = await remoteDataSource.updateUser(user.id, {
+        'nom': user.nom,
+        'prenom': user.prenom,
+        'email': user.email,
+        'telephone': user.telephone,
+        if (user.avatar != null) 'avatar': user.avatar,
+        if (user.countryId != null) 'countryId': user.countryId,
+      });
+      await localDataSource.saveUser(updated);
+      return Right(updated);
     } catch (e) {
       return Left(_mapExceptionToFailure(e));
     }

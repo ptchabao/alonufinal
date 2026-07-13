@@ -18,3 +18,4 @@ export 'referral_screen.dart';
 export 'student_profile_screen.dart';
 export 'tv_screen.dart';
 export 'course_detail_screen.dart';
+export 'artisan_dashboard_screen.dart';

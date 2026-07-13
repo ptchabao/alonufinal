@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/artisan_model.dart';
 import '../bloc/api_providers.dart';
@@ -492,7 +493,9 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       extracted.add(product['image'].toString());
     }
 
-    return extracted;
+    return extracted
+        .map((e) => AppConstants.resolveMediaUrl(e) ?? e)
+        .toList();
   }
 
   String _productTypeLabel(Map<String, dynamic> product) {

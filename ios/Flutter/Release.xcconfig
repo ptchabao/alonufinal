@@ -1,1 +1,4 @@
 #include "Generated.xcconfig"
+// Clé Google Maps : copier ios/Runner/Config.xcconfig.sample vers
+// ios/Runner/Config.xcconfig (fichier gitignoré) et y renseigner GMS_API_KEY.
+#include? "../Runner/Config.xcconfig"

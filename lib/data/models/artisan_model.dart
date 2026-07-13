@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../core/constants/app_constants.dart';
 import '../../domain/entities/artisan.dart';
 
 class CountryModel extends Equatable {
@@ -77,7 +78,7 @@ class ArtisanUserModel extends Equatable {
       prenom: json['prenom'] as String? ?? '',
       email: json['email'] as String? ?? '',
       telephone: json['telephone'] as String? ?? '',
-      avatar: json['avatar'] as String?,
+      avatar: AppConstants.resolveMediaUrl(json['avatar'] as String?),
       country: CountryModel.fromJson(
           json['country'] as Map<String, dynamic>? ?? {}),
     );
@@ -133,7 +134,7 @@ class SubCategoryModel extends Equatable {
       libelleFr: json['libelleFr'] as String? ?? '',
       libelleEn: json['libelleEn'] as String?,
       description: json['description'] as String?,
-      image: json['image'] as String?,
+      image: AppConstants.resolveMediaUrl(json['image'] as String?),
       createdAt: _parseDateTime(json['createdAt']),
       updatedAt: _parseDateTime(json['updatedAt']),
       deletedAt: json['deletedAt'] != null
@@ -436,7 +437,7 @@ class CategoryModel extends Equatable {
       libelleFr: json['libelleFr'] as String? ?? '',
       libelleEn: json['libelleEn'] as String?,
       description: json['description'] as String?,
-      image: json['image'] as String?,
+      image: AppConstants.resolveMediaUrl(json['image'] as String?),
       createdAt: _parseDateTime(json['createdAt']),
       updatedAt: _parseDateTime(json['updatedAt']),
       deletedAt: json['deletedAt'] != null
@@ -476,6 +477,64 @@ class CategoryModel extends Equatable {
     deletedAt,
     subCategories,
   ];
+}
+
+class RealisationModel extends Equatable {
+  final String id;
+  final String artisanId;
+  final String libelle;
+  final String? description;
+  final List<String> images;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  const RealisationModel({
+    required this.id,
+    required this.artisanId,
+    required this.libelle,
+    this.description,
+    required this.images,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  factory RealisationModel.fromJson(Map<String, dynamic> json) {
+    return RealisationModel(
+      id: json['id'] as String? ?? '',
+      artisanId: json['artisanId'] as String? ?? '',
+      libelle: json['libelle'] as String? ?? '',
+      description: json['description'] as String?,
+      images: (json['images'] as List<dynamic>?)
+              ?.map((e) => AppConstants.resolveMediaUrl(e.toString()) ?? '')
+              .toList() ??
+          [],
+      createdAt: _parseDateTime(json['createdAt']),
+      updatedAt: _parseDateTime(json['updatedAt']),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'artisanId': artisanId,
+    'libelle': libelle,
+    'description': description,
+    'images': images,
+    'createdAt': createdAt.toIso8601String(),
+    'updatedAt': updatedAt.toIso8601String(),
+  };
+
+  Realisation toEntity() => Realisation(
+    id: id,
+    artisanId: artisanId,
+    title: libelle,
+    description: description,
+    imageUrls: images,
+    createdAt: createdAt,
+  );
+
+  @override
+  List<Object?> get props =>
+      [id, artisanId, libelle, description, images, createdAt, updatedAt];
 }
 
 DateTime _parseDateTime(dynamic value) {

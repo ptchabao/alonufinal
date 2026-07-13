@@ -3,87 +3,100 @@ import 'package:dartz/dartz.dart' show Either, Left, Right;
 import '../../core/errors/failure.dart';
 import '../../domain/entities/order.dart';
 import '../../domain/repositories/order_repository.dart';
+import '../datasources/order_remote_data_source.dart';
 
 class OrderRepositoryImpl implements OrderRepository {
-  final List<Order> _orders = [
-    Order(
-      id: 'order1',
-      clientId: 'client1',
-      artisanId: 'artisan1',
-      items: [
-        OrderItem(productId: 'prod1', quantity: 1, pricePerUnit: 2500, productTitle: 'Réparation de robinet'),
-      ],
-      status: OrderStatus.CONFIRMED,
-      deliveryAddress: 'Lomé, Togo',
-      deliveryLatitude: 6.1725,
-      deliveryLongitude: 1.2314,
-      totalAmount: 2500,
-      currency: 'XOF',
-      createdAt: DateTime.now().subtract(const Duration(days: 2)),
-      updatedAt: DateTime.now().subtract(const Duration(days: 1)),
-    ),
-    Order(
-      id: 'order2',
-      clientId: 'client1',
-      artisanId: 'artisan2',
-      items: [
-        OrderItem(productId: 'prod2', quantity: 1, pricePerUnit: 12000, productTitle: 'Table sur mesure'),
-      ],
-      status: OrderStatus.IN_PROGRESS,
-      deliveryAddress: 'Kara, Togo',
-      deliveryLatitude: 9.5511,
-      deliveryLongitude: 1.1840,
-      totalAmount: 12000,
-      currency: 'XOF',
-      createdAt: DateTime.now().subtract(const Duration(days: 4)),
-    ),
-  ];
+  final OrderRemoteDataSource remote;
+
+  OrderRepositoryImpl(this.remote);
 
   @override
   Future<Either<Failure, Order>> createOrder(Order order) async {
-    _orders.add(order);
-    return Right(order);
+    try {
+      final payload = {
+        'artisanId': order.artisanId,
+        'items': order.items
+            .map((item) => {'productId': item.productId, 'quantity': item.quantity})
+            .toList(),
+        'deliveryAddress': order.deliveryAddress,
+        if (order.deliveryLatitude != null) 'deliveryLatitude': order.deliveryLatitude,
+        if (order.deliveryLongitude != null) 'deliveryLongitude': order.deliveryLongitude,
+      };
+      final data = await remote.createOrder(payload);
+      return Right(_mapToOrder(data as Map<String, dynamic>));
+    } catch (e) {
+      return Left(ServerFailure(message: e.toString()));
+    }
   }
 
   @override
   Future<Either<Failure, void>> cancelOrder(String orderId, String reason) async {
-    final index = _orders.indexWhere((order) => order.id == orderId);
-    if (index < 0) {
-      return Left(NotFoundFailure(message: 'Commande introuvable.'));
+    try {
+      await remote.cancelOrder(orderId);
+      return const Right(null);
+    } catch (e) {
+      return Left(ServerFailure(message: e.toString()));
     }
-    _orders[index] = _orders[index].copyWith(status: OrderStatus.CANCELLED, cancellationReason: reason, updatedAt: DateTime.now());
-    return const Right(null);
   }
 
   @override
   Future<Either<Failure, Order>> getOrder(String orderId) async {
     try {
-      final order = _orders.firstWhere((item) => item.id == orderId);
-      return Right(order);
-    } catch (_) {
-      return Left(NotFoundFailure(message: 'Commande introuvable.'));
+      final data = await remote.getOrderDetail(orderId);
+      return Right(_mapToOrder(data as Map<String, dynamic>));
+    } catch (e) {
+      return Left(NotFoundFailure(message: e.toString()));
     }
   }
 
   @override
   Future<Either<Failure, List<Order>>> getMyOrders({required bool isArtisan, int? page}) async {
-    final orders = _orders.where((order) {
-      if (isArtisan) {
-        return order.artisanId == 'artisan1';
-      }
-      return order.clientId == 'client1';
-    }).toList();
-    return Right(orders);
+    try {
+      final list = await remote.getOrders(isArtisan: isArtisan);
+      final orders = list.map((e) => _mapToOrder(e as Map<String, dynamic>)).toList();
+      return Right(orders);
+    } catch (e) {
+      return Left(ServerFailure(message: e.toString()));
+    }
   }
 
   @override
   Future<Either<Failure, Order>> updateOrderStatus(String orderId, OrderStatus status) async {
-    final index = _orders.indexWhere((order) => order.id == orderId);
-    if (index < 0) {
-      return Left(NotFoundFailure(message: 'Commande introuvable.'));
+    try {
+      final data = await remote.updateOrderStatus(orderId, status.name);
+      return Right(_mapToOrder(data as Map<String, dynamic>));
+    } catch (e) {
+      return Left(ServerFailure(message: e.toString()));
     }
-    _orders[index] = _orders[index].copyWith(status: status, updatedAt: DateTime.now());
-    return Right(_orders[index]);
+  }
+
+  Order _mapToOrder(Map<String, dynamic> json) {
+    final itemsJson = json['items'] as List<dynamic>? ?? [];
+    return Order(
+      id: json['id']?.toString() ?? '',
+      clientId: json['clientId']?.toString() ?? '',
+      artisanId: json['artisanId']?.toString() ?? '',
+      items: itemsJson.map((raw) {
+        final item = raw as Map<String, dynamic>;
+        return OrderItem(
+          productId: item['productId']?.toString() ?? '',
+          quantity: (item['quantity'] as num?)?.toInt() ?? 0,
+          pricePerUnit: (item['unitPrice'] as num?)?.toDouble() ?? 0,
+          productTitle: item['productTitle']?.toString() ?? 'Produit',
+        );
+      }).toList(),
+      status: OrderStatus.values.firstWhere(
+        (s) => s.name == (json['status']?.toString() ?? ''),
+        orElse: () => OrderStatus.PENDING,
+      ),
+      deliveryAddress: json['deliveryAddress']?.toString() ?? '',
+      deliveryLatitude: (json['deliveryLatitude'] as num?)?.toDouble(),
+      deliveryLongitude: (json['deliveryLongitude'] as num?)?.toDouble(),
+      totalAmount: (json['totalAmount'] as num?)?.toDouble() ?? 0,
+      currency: json['currency']?.toString() ?? 'XOF',
+      createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? '') ?? DateTime.now(),
+      updatedAt: DateTime.tryParse(json['updatedAt']?.toString() ?? ''),
+    );
   }
 }
 

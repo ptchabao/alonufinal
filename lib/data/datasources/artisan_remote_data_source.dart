@@ -30,6 +30,23 @@ abstract class ArtisanRemoteDataSource {
   Future<dynamic> publishProduct(String artisanId, Map<String, dynamic> productData);
   Future<List<dynamic>> getArtisanProducts(String artisanId, {int page = 1, int limit = 20});
   Future<List<dynamic>> getArtisanOrders(String artisanId, {int page = 1, int limit = 20});
+
+  // POST /artisans
+  Future<ArtisanModel> createArtisan(Map<String, dynamic> data);
+  // GET /artisans/{id}/realisations
+  Future<List<RealisationModel>> getRealisations(String artisanId);
+  // POST /artisans/{id}/realisations
+  Future<RealisationModel> addRealisation(String artisanId, Map<String, dynamic> data);
+  // PUT /artisans/{id}/realisations/{realisationId}
+  Future<RealisationModel> updateRealisation(String artisanId, String realisationId, Map<String, dynamic> data);
+  // DELETE /artisans/{id}/realisations/{realisationId}
+  Future<void> deleteRealisation(String artisanId, String realisationId);
+  // PUT /products/{id}
+  Future<Map<String, dynamic>> updateProduct(String productId, Map<String, dynamic> data);
+  // DELETE /products/{id}
+  Future<void> deleteProduct(String productId);
+  // PATCH /products/{id}/toggle-active
+  Future<Map<String, dynamic>> toggleProductActive(String productId);
 }
 
 class ArtisanRemoteDataSourceImpl implements ArtisanRemoteDataSource {
@@ -387,6 +404,149 @@ class ArtisanRemoteDataSourceImpl implements ArtisanRemoteDataSource {
         return _extractList(response.data);
       }
       throw Exception('Erreur lors du chargement des commandes de l\'artisan');
+    } on DioException catch (e) {
+      throw _handleDioException(e);
+    }
+  }
+
+  @override
+  Future<ArtisanModel> createArtisan(Map<String, dynamic> data) async {
+    try {
+      final response = await dio.post(
+        '${AppConstants.apiBaseUrl}${AppConstants.artisansEndpoint}',
+        data: data,
+      );
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        final json = _extractJson(response.data) as Map<String, dynamic>?
+            ?? (response.data as Map<String, dynamic>);
+        return ArtisanModel.fromJson(json);
+      }
+      throw Exception('Erreur lors de la création de l\'artisan');
+    } on DioException catch (e) {
+      throw _handleDioException(e);
+    }
+  }
+
+  @override
+  Future<List<RealisationModel>> getRealisations(String artisanId) async {
+    try {
+      final response = await dio.get(
+        '${AppConstants.apiBaseUrl}${AppConstants.artisansEndpoint}/$artisanId/realisations',
+      );
+
+      if (response.statusCode == 200) {
+        return _extractList(response.data)
+            .map((e) => RealisationModel.fromJson(e as Map<String, dynamic>))
+            .toList();
+      }
+      throw Exception('Erreur lors du chargement des réalisations');
+    } on DioException catch (e) {
+      throw _handleDioException(e);
+    }
+  }
+
+  @override
+  Future<RealisationModel> addRealisation(String artisanId, Map<String, dynamic> data) async {
+    try {
+      final response = await dio.post(
+        '${AppConstants.apiBaseUrl}${AppConstants.artisansEndpoint}/$artisanId/realisations',
+        data: data,
+      );
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        final json = _extractJson(response.data) as Map<String, dynamic>?
+            ?? (response.data as Map<String, dynamic>);
+        return RealisationModel.fromJson(json);
+      }
+      throw Exception('Erreur lors de la création de la réalisation');
+    } on DioException catch (e) {
+      throw _handleDioException(e);
+    }
+  }
+
+  @override
+  Future<RealisationModel> updateRealisation(
+      String artisanId, String realisationId, Map<String, dynamic> data) async {
+    try {
+      final response = await dio.put(
+        '${AppConstants.apiBaseUrl}${AppConstants.artisansEndpoint}/$artisanId/realisations/$realisationId',
+        data: data,
+      );
+
+      if (response.statusCode == 200) {
+        final json = _extractJson(response.data) as Map<String, dynamic>?
+            ?? (response.data as Map<String, dynamic>);
+        return RealisationModel.fromJson(json);
+      }
+      throw Exception('Erreur lors de la mise à jour de la réalisation');
+    } on DioException catch (e) {
+      throw _handleDioException(e);
+    }
+  }
+
+  @override
+  Future<void> deleteRealisation(String artisanId, String realisationId) async {
+    try {
+      final response = await dio.delete(
+        '${AppConstants.apiBaseUrl}${AppConstants.artisansEndpoint}/$artisanId/realisations/$realisationId',
+      );
+
+      if (response.statusCode == 204 || response.statusCode == 200) {
+        return;
+      }
+      throw Exception('Erreur lors de la suppression de la réalisation');
+    } on DioException catch (e) {
+      throw _handleDioException(e);
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> updateProduct(String productId, Map<String, dynamic> data) async {
+    try {
+      final response = await dio.put(
+        '${AppConstants.apiBaseUrl}${AppConstants.productsEndpoint}/$productId',
+        data: data,
+      );
+
+      if (response.statusCode == 200) {
+        return _extractJson(response.data) as Map<String, dynamic>?
+            ?? (response.data as Map<String, dynamic>);
+      }
+      throw Exception('Erreur lors de la mise à jour du produit');
+    } on DioException catch (e) {
+      throw _handleDioException(e);
+    }
+  }
+
+  @override
+  Future<void> deleteProduct(String productId) async {
+    try {
+      final response = await dio.delete(
+        '${AppConstants.apiBaseUrl}${AppConstants.productsEndpoint}/$productId',
+      );
+
+      if (response.statusCode == 204 || response.statusCode == 200) {
+        return;
+      }
+      throw Exception('Erreur lors de la suppression du produit');
+    } on DioException catch (e) {
+      throw _handleDioException(e);
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> toggleProductActive(String productId) async {
+    try {
+      final response = await dio.patch(
+        '${AppConstants.apiBaseUrl}${AppConstants.productsEndpoint}/$productId/toggle-active',
+      );
+
+      if (response.statusCode == 200) {
+        return _extractJson(response.data) as Map<String, dynamic>?
+            ?? (response.data as Map<String, dynamic>);
+      }
+      throw Exception('Erreur lors du changement de statut du produit');
     } on DioException catch (e) {
       throw _handleDioException(e);
     }

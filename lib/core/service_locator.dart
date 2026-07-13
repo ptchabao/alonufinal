@@ -7,6 +7,7 @@ import '../data/repositories/auth_repository_impl.dart';
 import '../data/repositories/order_repository_impl.dart';
 import '../data/repositories/artisan_remote_repository_impl.dart';
 import '../data/datasources/artisan_remote_data_source.dart';
+import '../data/datasources/order_remote_data_source.dart';
 import '../domain/repositories/artisan_repository.dart';
 import '../domain/repositories/auth_repository.dart';
 import '../domain/repositories/order_repository.dart';
@@ -48,6 +49,10 @@ void setupServiceLocator() {
     ArtisanRemoteDataSourceImpl(getIt<Dio>()),
   );
 
+  getIt.registerSingleton<OrderRemoteDataSource>(
+    OrderRemoteDataSourceImpl(getIt<Dio>()),
+  );
+
   getIt.registerSingleton<AuthLocalDataSource>(
     AuthLocalDataSourceImpl(),
   );
@@ -75,7 +80,9 @@ void setupServiceLocator() {
   getIt.registerSingleton<ProductRepository>(
     RemoteProductRepositoryImpl(getIt<ArtisanRemoteDataSource>()),
   );
-  getIt.registerSingleton<OrderRepository>(OrderRepositoryImpl());
+  getIt.registerSingleton<OrderRepository>(
+    OrderRepositoryImpl(getIt<OrderRemoteDataSource>()),
+  );
   getIt.registerSingleton<PaymentRepository>(PaymentRepositoryImpl());
 
   // Use Cases
@@ -93,12 +100,15 @@ void setupServiceLocator() {
   getIt.registerSingleton<CreateArtisanProfileUseCase>(CreateArtisanProfileUseCase(getIt<ArtisanRepository>()));
   getIt.registerSingleton<UpdateArtisanProfileUseCase>(UpdateArtisanProfileUseCase(getIt<ArtisanRepository>()));
   getIt.registerSingleton<GetRealisationsUseCase>(GetRealisationsUseCase(getIt<ArtisanRepository>()));
+  getIt.registerSingleton<AddRealisationUseCase>(AddRealisationUseCase(getIt<ArtisanRepository>()));
+  getIt.registerSingleton<DeleteRealisationUseCase>(DeleteRealisationUseCase(getIt<ArtisanRepository>()));
 
   getIt.registerSingleton<GetProductsUseCase>(GetProductsUseCase(getIt<ProductRepository>()));
   getIt.registerSingleton<GetProductDetailsUseCase>(GetProductDetailsUseCase(getIt<ProductRepository>()));
   getIt.registerSingleton<CreateProductUseCase>(CreateProductUseCase(getIt<ProductRepository>()));
   getIt.registerSingleton<UpdateProductUseCase>(UpdateProductUseCase(getIt<ProductRepository>()));
   getIt.registerSingleton<DeleteProductUseCase>(DeleteProductUseCase(getIt<ProductRepository>()));
+  getIt.registerSingleton<ToggleProductActiveUseCase>(ToggleProductActiveUseCase(getIt<ProductRepository>()));
   getIt.registerSingleton<GetArtisanProductsUseCase>(GetArtisanProductsUseCase(getIt<ProductRepository>()));
 
   getIt.registerSingleton<CreateOrderUseCase>(CreateOrderUseCase(getIt<OrderRepository>()));

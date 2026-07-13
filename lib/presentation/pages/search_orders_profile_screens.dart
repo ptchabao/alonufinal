@@ -3,13 +3,21 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../bloc/auth_provider.dart';
 import '../bloc/api_providers.dart';
 import '../bloc/order_provider.dart';
 import '../widgets/widgets.dart';
+import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
+import '../../data/models/artisan_model.dart';
+import '../../domain/entities/order.dart';
 import '../../domain/entities/user.dart';
+
+// Lomé, utilisé comme centre de carte par défaut quand aucun artisan géolocalisé
+// n'est disponible pour recentrer la vue.
+const LatLng _defaultMapCenter = LatLng(6.1725, 1.2314);
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({Key? key}) : super(key: key);
@@ -130,6 +138,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       ),
       body: (artisansAsync.isLoading || productsAsync.isLoading)
           ? const Center(child: AppLoadingIndicator())
+          : _showMap
+          ? _buildMapView(filteredArtisans)
           : RefreshIndicator(
               onRefresh: _loadSearchData,
               child: ListView(
@@ -386,6 +396,56 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     );
   }
 
+  Widget _buildMapView(List<ArtisanModel> artisans) {
+    final located = artisans
+        .where((a) => a.latitude != null && a.longitude != null)
+        .toList();
+
+    final markers = located.map((artisan) {
+      return Marker(
+        markerId: MarkerId(artisan.id),
+        position: LatLng(artisan.latitude!, artisan.longitude!),
+        infoWindow: InfoWindow(
+          title: '${artisan.user.prenom} ${artisan.user.nom}',
+          snippet: artisan.subCategories.isNotEmpty
+              ? artisan.subCategories.first.subCategory.libelleFr
+              : null,
+          onTap: () => context.push('/artisan/${artisan.id}'),
+        ),
+        onTap: () => context.push('/artisan/${artisan.id}'),
+      );
+    }).toSet();
+
+    final center = located.isNotEmpty
+        ? LatLng(located.first.latitude!, located.first.longitude!)
+        : _defaultMapCenter;
+
+    return Stack(
+      children: [
+        GoogleMap(
+          initialCameraPosition: CameraPosition(target: center, zoom: 12),
+          markers: markers,
+          myLocationButtonEnabled: false,
+        ),
+        if (located.isEmpty)
+          Positioned(
+            top: 16,
+            left: 16,
+            right: 16,
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: AppColors.cardShadows,
+              ),
+              child: const Text('Aucun artisan géolocalisé pour cette recherche.'),
+            ),
+          ),
+      ],
+    );
+  }
+
   double _calculateDistance(
     double lat1,
     double lon1,
@@ -412,17 +472,20 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     if (rawImages is List) {
       for (final image in rawImages) {
         if (image is Map && image['url'] != null) {
-          return image['url'].toString();
+          return AppConstants.resolveMediaUrl(image['url'].toString()) ??
+              'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=300&h=300&fit=crop';
         }
         if (image is String && image.isNotEmpty) {
-          return image;
+          return AppConstants.resolveMediaUrl(image) ??
+              'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=300&h=300&fit=crop';
         }
       }
     }
 
     final fallbackImage = product['image'];
     if (fallbackImage != null) {
-      return fallbackImage.toString();
+      return AppConstants.resolveMediaUrl(fallbackImage.toString()) ??
+          'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=300&h=300&fit=crop';
     }
 
     return 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=300&h=300&fit=crop';
@@ -500,21 +563,28 @@ class OrdersScreen extends ConsumerWidget {
               ),
             );
           }
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: orders.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
-            itemBuilder: (context, index) {
-              final order = orders[index];
-              return OrderStatusCard(
-                status: order.status.name.toUpperCase(),
-                date: 'Créée récemment',
-                description:
-                    '${order.items.length} article(s) - ${order.totalAmount.toStringAsFixed(0)} ${order.currency}',
-                isCompleted: order.status.name.toLowerCase() == 'completed',
-                isActive: true,
-              );
-            },
+          return RefreshIndicator(
+            onRefresh: () async => ref.invalidate(myOrdersProvider(isArtisan)),
+            child: ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: orders.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                final order = orders[index];
+                final date = order.createdAt;
+                return OrderStatusCard(
+                  status: order.status.name.toUpperCase(),
+                  date:
+                      '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}',
+                  description:
+                      '${order.items.length} article(s) - ${order.totalAmount.toStringAsFixed(0)} ${order.currency}',
+                  isCompleted: order.status == OrderStatus.COMPLETED,
+                  isActive: order.status == OrderStatus.CONFIRMED ||
+                      order.status == OrderStatus.IN_PROGRESS,
+                  onTap: () => context.push('/orders/${order.id}'),
+                );
+              },
+            ),
           );
         },
         loading: () => const Center(child: AppLoadingIndicator()),
@@ -625,6 +695,11 @@ class ProfileScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 12),
                       _ProfileMenuItem(
+                        icon: Icons.dashboard_outlined,
+                        title: 'Tableau de bord',
+                        onTap: () => context.push('/artisan-dashboard'),
+                      ),
+                      _ProfileMenuItem(
                         icon: Icons.edit_outlined,
                         title: 'Modifier mon profil',
                         onTap: () => context.push('/artisan-profile?tab=0'),
@@ -643,6 +718,27 @@ class ProfileScreen extends ConsumerWidget {
                         icon: Icons.receipt_long_outlined,
                         title: 'Mes Commandes',
                         onTap: () => context.push('/artisan-profile?tab=3'),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+
+                  // ===== STUDENT SECTION =====
+                  if (authState.user?.role.name == 'STUDENT') ...
+                    [
+                      Text(
+                        'Mon Espace Étudiant',
+                        style: Theme.of(context).textTheme.headlineSmall,
+                      ),
+                      const SizedBox(height: 12),
+                      _ProfileMenuItem(
+                        icon: Icons.school_outlined,
+                        title: 'Mon espace étudiant',
+                        onTap: () => context.push('/student-profile'),
+                      ),
+                      _ProfileMenuItem(
+                        icon: Icons.track_changes_outlined,
+                        title: 'Suivi des cours',
+                        onTap: () => context.push('/student-profile'),
                       ),
                       const SizedBox(height: 24),
                     ],
@@ -675,9 +771,19 @@ class ProfileScreen extends ConsumerWidget {
                     onTap: () {},
                   ),
                   _ProfileMenuItem(
-                    icon: Icons.notification_add_outlined,
-                    title: 'Notifications',
-                    onTap: () {},
+                    icon: Icons.volunteer_activism_outlined,
+                    title: 'Faire un don',
+                    onTap: () => context.push('/donation'),
+                  ),
+                  _ProfileMenuItem(
+                    icon: Icons.share_outlined,
+                    title: 'Programme de parrainage',
+                    onTap: () => context.push('/referral'),
+                  ),
+                  _ProfileMenuItem(
+                    icon: Icons.tune_outlined,
+                    title: 'Préférences',
+                    onTap: () => showPreferencesSheet(context),
                   ),
                   const SizedBox(height: 24),
 

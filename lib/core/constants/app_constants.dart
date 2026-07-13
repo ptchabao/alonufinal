@@ -2,6 +2,23 @@ class AppConstants {
   static const String appName = 'ALONU';
   static const String apiBaseUrl = 'https://api.alonu.shop/api';
 
+  // Origine du serveur (sans le préfixe /api) : les fichiers uploadés
+  // (POST /upload/image, publicités, réalisations, produits...) sont servis
+  // en chemin relatif (ex: /uploads/advertisements/xxx.jpg) depuis cette racine.
+  static String get mediaBaseUrl {
+    final uri = Uri.parse(apiBaseUrl);
+    return Uri(scheme: uri.scheme, host: uri.host, port: uri.hasPort ? uri.port : null).toString();
+  }
+
+  /// Résout une URL d'image potentiellement relative renvoyée par l'API en
+  /// une URL absolue utilisable par un widget réseau (CachedNetworkImage,
+  /// Image.network...). Retourne null si [path] est null/vide.
+  static String? resolveMediaUrl(String? path) {
+    if (path == null || path.isEmpty) return null;
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    return path.startsWith('/') ? '$mediaBaseUrl$path' : '$mediaBaseUrl/$path';
+  }
+
   // API Endpoints
   static const String loginEndpoint = '/auth/login';
   static const String registerEndpoint = '/auth/register';
@@ -16,6 +33,11 @@ class AppConstants {
   static const String apprenticeshipAdsEndpoint =
       '/advertisements/apprenticeship/public';
   static const String countriesEndpoint = '/countries';
+  static const String donationsEndpoint = '/donations';
+  static const String referralsEndpoint = '/referrals';
+  static const String studentsEndpoint = '/students';
+  static const String dashboardEndpoint = '/dashboard';
+  static const String preferencesEndpoint = '/preferences';
 
   // Pagination
   static const int pageSize = 20;

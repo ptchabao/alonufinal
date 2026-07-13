@@ -26,6 +26,7 @@ enum AppRoute {
   donation,
   referral,
   courseDetail,
+  artisanDashboard,
 }
 
 class AppRouter {
@@ -134,7 +135,8 @@ class AppRouter {
           name: AppRoute.artisanProfile.name,
           builder: (context, state) {
             final tab = int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
-            return ArtisanProfileEditScreen(initialTabIndex: tab);
+            final artisanId = state.uri.queryParameters['artisanId'];
+            return ArtisanProfileEditScreen(artisanId: artisanId, initialTabIndex: tab);
           },
         ),
         GoRoute(
@@ -145,12 +147,24 @@ class AppRouter {
         GoRoute(
           path: '/donation',
           name: AppRoute.donation.name,
-          builder: (context, state) => const DonationScreen(),
+          builder: (context, state) {
+            final params = state.uri.queryParameters;
+            return DonationScreen(
+              recipientType: params['recipientType'],
+              recipientId: params['recipientId'],
+              recipientLabel: params['recipientLabel'],
+            );
+          },
         ),
         GoRoute(
           path: '/referral',
           name: AppRoute.referral.name,
           builder: (context, state) => const ReferralScreen(),
+        ),
+        GoRoute(
+          path: '/artisan-dashboard',
+          name: AppRoute.artisanDashboard.name,
+          builder: (context, state) => const ArtisanDashboardScreen(),
         ),
         ShellRoute(
           navigatorKey: shellNavigatorKey,

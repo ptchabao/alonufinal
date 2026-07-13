@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../bloc/api_providers.dart';
 import '../widgets/widgets.dart';
@@ -244,15 +245,15 @@ class _CategoryDetailScreenState extends ConsumerState<CategoryDetailScreen> {
                         child: Padding(
                           padding: const EdgeInsets.only(right: 12),
                           child: ProductCard(
-                            imageUrl:
-                                (productMap['images'] is List &&
-                                    (productMap['images'] as List).isNotEmpty)
-                                ? (productMap['images'][0]['url'] ??
-                                          productMap['images'][0])
-                                      .toString()
-                                : (productMap['image'] ??
-                                          'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=300&h=300&fit=crop')
-                                      .toString(),
+                            imageUrl: AppConstants.resolveMediaUrl(
+                                  (productMap['images'] is List &&
+                                          (productMap['images'] as List).isNotEmpty)
+                                      ? (productMap['images'][0]['url'] ??
+                                                productMap['images'][0])
+                                            .toString()
+                                      : productMap['image']?.toString(),
+                                ) ??
+                                'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=300&h=300&fit=crop',
                             title: (productMap['title'] ?? 'Produit')
                                 .toString(),
                             artisanName: 'Artisan',

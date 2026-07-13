@@ -50,11 +50,7 @@ dependencies:
   
   # Navigation
   go_router: ^12.1.1
-  
-  # Firebase
-  firebase_core: ^2.24.2
-  firebase_messaging: ^14.6.8
-  
+
   # Location & Maps
   geolocator: ^14.0.2
   google_maps_flutter: ^2.5.0
@@ -82,13 +78,7 @@ dependencies:
   equatable: ^2.0.5
   get_it: ^7.6.0
   dartz: ^0.10.1
-  
-  # Image Picker
-  image_picker: ^1.0.4
-  
-  # Permissions
-  permission_handler: ^11.0.0
-  
+
   # Logging
   logger: ^2.0.1
 

@@ -1,3 +1,4 @@
+import '../../core/constants/app_constants.dart';
 import '../../domain/entities/user.dart';
 
 class UserModel extends User {
@@ -26,7 +27,7 @@ class UserModel extends User {
       telephone: _parseString(json['telephone']) ?? '',
       role: _parseRole(json['role']),
       status: _parseStatus(json['status']),
-      avatar: _parseString(json['avatar']),
+      avatar: AppConstants.resolveMediaUrl(_parseString(json['avatar'])),
       countryId: _parseString(json['countryId']),
       createdAt: _parseDateTime(json['createdAt']),
     );

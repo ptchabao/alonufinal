@@ -85,6 +85,26 @@ class GetRealisationsUseCase {
   }
 }
 
+class AddRealisationUseCase {
+  final ArtisanRepository repository;
+
+  AddRealisationUseCase(this.repository);
+
+  Future<Either<Failure, Realisation>> call(String artisanId, Realisation realisation) {
+    return repository.addRealisation(artisanId, realisation);
+  }
+}
+
+class DeleteRealisationUseCase {
+  final ArtisanRepository repository;
+
+  DeleteRealisationUseCase(this.repository);
+
+  Future<Either<Failure, void>> call(String artisanId, String realisationId) {
+    return repository.deleteRealisation(artisanId, realisationId);
+  }
+}
+
 // Product Use Cases
 class GetProductsUseCase {
   final ProductRepository repository;
@@ -143,6 +163,16 @@ class DeleteProductUseCase {
 
   Future<Either<Failure, void>> call(String productId) {
     return repository.deleteProduct(productId);
+  }
+}
+
+class ToggleProductActiveUseCase {
+  final ProductRepository repository;
+
+  ToggleProductActiveUseCase(this.repository);
+
+  Future<Either<Failure, void>> call(String productId) {
+    return repository.toggleProductActive(productId);
   }
 }
 

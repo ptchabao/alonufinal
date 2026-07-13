@@ -1,19 +1,35 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../data/datasources/artisan_remote_data_source.dart';
+import '../../data/datasources/auth_remote_data_source.dart';
 import '../../data/models/artisan_model.dart';
+import '../../core/constants/app_constants.dart';
 import '../../core/network/dio_client.dart';
 import '../../core/services/location_service.dart';
+import '../bloc/auth_provider.dart';
 import 'package:geolocator/geolocator.dart';
 
-// Provider for DIO client
+// Provider for DIO client. Doit porter baseUrl + AuthInterceptor, sans quoi
+// tous les appels authentifiés (create/update artisan, produits, réalisations)
+// échouent silencieusement en 401 en environnement de prod.
 final dioProvider = Provider<Dio>((ref) {
+  const secureStorage = FlutterSecureStorage();
   final dio = Dio(BaseOptions(
-    connectTimeout: const Duration(seconds: 30),
-    receiveTimeout: const Duration(seconds: 30),
-    sendTimeout: const Duration(seconds: 30),
+    baseUrl: AppConstants.apiBaseUrl,
+    connectTimeout: const Duration(milliseconds: AppConstants.connectTimeout),
+    receiveTimeout: const Duration(milliseconds: AppConstants.receiveTimeout),
+    sendTimeout: const Duration(milliseconds: AppConstants.sendTimeout),
   ));
+  dio.interceptors.add(AuthInterceptor(secureStorage));
+  dio.interceptors.add(LoggingInterceptor());
   return dio;
+});
+
+// Provider for the auth remote data source (mise à jour nom/prénom via PUT /users/{id})
+final authRemoteDataSourceProvider = Provider<AuthRemoteDataSource>((ref) {
+  final dio = ref.watch(dioProvider);
+  return AuthRemoteDataSourceImpl(dio);
 });
 
 // Provider for location service
@@ -129,6 +145,69 @@ final artisanProductsProvider = FutureProvider.family<List<dynamic>, String>((re
 final artisanOrdersProvider = FutureProvider.family<List<dynamic>, String>((ref, artisanId) async {
   final dataSource = ref.watch(artisanRemoteDataSourceProvider);
   return dataSource.getArtisanOrders(artisanId);
+});
+
+// L'API n'expose pas de /artisans/me : on retrouve le profil artisan de
+// l'utilisateur connecté dans la liste des artisans actifs (GET /artisans).
+// Limite connue : un artisan en attente de validation (non "actif") ne
+// remontera pas ici tant qu'un admin ne l'a pas validé via /artisans/{id}/validate.
+final myArtisanProvider = FutureProvider<ArtisanModel?>((ref) async {
+  final userId = ref.watch(authProvider).user?.id;
+  if (userId == null) return null;
+  final dataSource = ref.watch(artisanRemoteDataSourceProvider);
+  final list = await dataSource.getArtisans(page: 1, limit: 100);
+  for (final artisan in list) {
+    if (artisan.userId == userId) return artisan;
+  }
+  return null;
+});
+
+// Provider for creating an artisan profile (callable) — POST /artisans
+final createArtisanActionProvider = Provider<Future<ArtisanModel> Function(Map<String, dynamic>)>((ref) {
+  final dataSource = ref.watch(artisanRemoteDataSourceProvider);
+  return (Map<String, dynamic> data) => dataSource.createArtisan(data);
+});
+
+// Provider for updating the current user's nom/prénom/avatar — PUT /users/{id}
+final updateUserActionProvider = Provider<Future<void> Function(String, Map<String, dynamic>)>((ref) {
+  final dataSource = ref.watch(authRemoteDataSourceProvider);
+  return (String userId, Map<String, dynamic> data) => dataSource.updateUser(userId, data);
+});
+
+// Provider for listing an artisan's réalisations
+final realisationsProvider = FutureProvider.family<List<RealisationModel>, String>((ref, artisanId) async {
+  final dataSource = ref.watch(artisanRemoteDataSourceProvider);
+  return dataSource.getRealisations(artisanId);
+});
+
+// Provider for adding a réalisation (callable)
+final addRealisationActionProvider = Provider<Future<RealisationModel> Function(String, Map<String, dynamic>)>((ref) {
+  final dataSource = ref.watch(artisanRemoteDataSourceProvider);
+  return (String artisanId, Map<String, dynamic> data) => dataSource.addRealisation(artisanId, data);
+});
+
+// Provider for deleting a réalisation (callable)
+final deleteRealisationActionProvider = Provider<Future<void> Function(String, String)>((ref) {
+  final dataSource = ref.watch(artisanRemoteDataSourceProvider);
+  return (String artisanId, String realisationId) => dataSource.deleteRealisation(artisanId, realisationId);
+});
+
+// Provider for updating a product (callable) — PUT /products/{id}
+final updateProductActionProvider = Provider<Future<Map<String, dynamic>> Function(String, Map<String, dynamic>)>((ref) {
+  final dataSource = ref.watch(artisanRemoteDataSourceProvider);
+  return (String productId, Map<String, dynamic> data) => dataSource.updateProduct(productId, data);
+});
+
+// Provider for deleting a product (callable) — DELETE /products/{id}
+final deleteProductActionProvider = Provider<Future<void> Function(String)>((ref) {
+  final dataSource = ref.watch(artisanRemoteDataSourceProvider);
+  return (String productId) => dataSource.deleteProduct(productId);
+});
+
+// Provider for toggling a product's active status (callable) — PATCH /products/{id}/toggle-active
+final toggleProductActiveActionProvider = Provider<Future<Map<String, dynamic>> Function(String)>((ref) {
+  final dataSource = ref.watch(artisanRemoteDataSourceProvider);
+  return (String productId) => dataSource.toggleProductActive(productId);
 });
 
 // State notifier for managing filtering/sorting state

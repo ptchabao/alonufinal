@@ -6,6 +6,7 @@ import 'package:carousel_slider/carousel_slider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../widgets/widgets.dart';
 import '../bloc/api_providers.dart';
@@ -126,11 +127,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                       .where((e) => e.isNotEmpty)
                                       .toList();
                               final linkUrl = (ad['linkUrl'] ?? '').toString();
-                              final displayImage = imageUrl.isNotEmpty
+                              final rawImage = imageUrl.isNotEmpty
                                   ? imageUrl
                                   : ((secondaryImages?.isNotEmpty == true)
                                       ? secondaryImages!.first
                                       : '');
+                              final displayImage =
+                                  AppConstants.resolveMediaUrl(rawImage) ?? '';
 
                               return GestureDetector(
                                 onTap: linkUrl.isNotEmpty
@@ -672,17 +675,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (rawImages is List) {
       for (final image in rawImages) {
         if (image is Map && image['url'] != null) {
-          return image['url'].toString();
+          return AppConstants.resolveMediaUrl(image['url'].toString()) ??
+              'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=300&h=300&fit=crop';
         }
         if (image is String && image.isNotEmpty) {
-          return image;
+          return AppConstants.resolveMediaUrl(image) ??
+              'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=300&h=300&fit=crop';
         }
       }
     }
 
     final fallbackImage = product is Map ? product['image'] : null;
     if (fallbackImage != null) {
-      return fallbackImage.toString();
+      return AppConstants.resolveMediaUrl(fallbackImage.toString()) ??
+          'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=300&h=300&fit=crop';
     }
 
     return 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=300&h=300&fit=crop';
@@ -708,14 +714,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (course is Map) {
       final imageUrl = course['imageUrl'];
       if (imageUrl != null && imageUrl.toString().isNotEmpty) {
-        return imageUrl.toString();
+        return AppConstants.resolveMediaUrl(imageUrl.toString()) ?? '';
       }
 
       final secondaryImages = course['secondaryImages'];
       if (secondaryImages is List && secondaryImages.isNotEmpty) {
         final firstImage = secondaryImages.first;
         if (firstImage != null) {
-          return firstImage.toString();
+          return AppConstants.resolveMediaUrl(firstImage.toString()) ?? '';
         }
       }
     }
