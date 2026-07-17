@@ -8,6 +8,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/artisan_model.dart';
+import '../../domain/entities/artisan.dart' show Realisation;
 import '../bloc/api_providers.dart';
 import '../bloc/auth_provider.dart';
 import '../widgets/widgets.dart';
@@ -43,6 +44,8 @@ class _ArtisanDetailScreenState extends ConsumerState<ArtisanDetailScreen>
   Widget build(BuildContext context) {
     final artisanAsync = ref.watch(artisanDetailProvider(widget.artisanId));
     final productsAsync = ref.watch(productsProvider);
+    final realizationsAsync =
+        ref.watch(artisanRealisationsProvider(widget.artisanId));
 
     return artisanAsync.when(
       data: (artisan) {
@@ -83,7 +86,7 @@ class _ArtisanDetailScreenState extends ConsumerState<ArtisanDetailScreen>
                   (item['artisanId'] ?? '').toString() == widget.artisanId,
             )
             .toList();
-        final realizations = <dynamic>[];
+        final realizations = realizationsAsync.value ?? const <Realisation>[];
         final safeSelectedIndex = realizations.isEmpty
             ? 0
             : _selectedPhotoIndex.clamp(0, realizations.length - 1);
@@ -488,7 +491,10 @@ class _ArtisanDetailScreenState extends ConsumerState<ArtisanDetailScreen>
     );
   }
 
-  Widget _buildPortfolioTab(BuildContext context, List<dynamic> realizations) {
+  Widget _buildPortfolioTab(BuildContext context, List<Realisation> realizations) {
+    if (realizations.isEmpty) {
+      return const Center(child: Text('Aucune réalisation pour le moment.'));
+    }
     return GridView.builder(
       padding: const EdgeInsets.all(16),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(

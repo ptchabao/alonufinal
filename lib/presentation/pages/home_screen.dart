@@ -421,7 +421,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               data: (products) {
                 final productList = products.take(4).toList();
                 if (productList.isEmpty) {
-                  return const Text('Aucun produit disponible pour le moment');
+                  return Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceVariant,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text(
+                      'Aucun produit disponible pour le moment.',
+                    ),
+                  );
                 }
 
                 final artisanNamesById = {
@@ -477,190 +486,74 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Cours disponibles
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Cours disponibles',
-                  style: Theme.of(context).textTheme.headlineSmall,
-                ),
-                AppBadge(
-                  label: 'API',
-                  backgroundColor: AppColors.primaryLight,
-                  textColor: AppColors.primary,
-                ),
-              ],
+            // Apprendre un métier — les sous-catégories réelles de l'API
+            // (ex: Coiffeurs, Menuisiers, Électriciens...), pas les
+            // publicités d'apprentissage (souvent vides côté API).
+            Text(
+              'Apprendre un métier',
+              style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 12),
-            ref
-                .watch(apprenticeshipAdsProvider)
-                .when(
-                  data: (courses) {
-                    if (courses.isEmpty) {
-                      return Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: AppColors.surfaceVariant,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Text(
-                          'Aucun cours disponible pour le moment.',
+            categoriesAsync.when(
+              data: (categories) {
+                final metiers = <(String categoryId, String subCategoryId, String label)>[];
+                for (final category in categories) {
+                  for (final sub in category.subCategories) {
+                    final label = sub.libelleFr.isNotEmpty
+                        ? sub.libelleFr
+                        : sub.libelle;
+                    if (label.isEmpty) continue;
+                    metiers.add((category.id, sub.id, label));
+                  }
+                }
+
+                if (metiers.isEmpty) {
+                  return Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceVariant,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text(
+                      'Aucun métier disponible pour le moment.',
+                    ),
+                  );
+                }
+
+                return SizedBox(
+                  height: 112,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: metiers.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 12),
+                    itemBuilder: (context, index) {
+                      final metier = metiers[index];
+                      return SizedBox(
+                        width: 96,
+                        child: CategoryCard(
+                          label: metier.$3,
+                          icon: _iconForMetier(metier.$3),
+                          onTap: () => context.push(
+                            '/category/${metier.$1}?subCategoryId=${metier.$2}',
+                          ),
                         ),
                       );
-                    }
-
-                    return ListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: courses.length,
-                      itemBuilder: (context, index) {
-                        final course = courses[index];
-                        final title = (course['title'] ?? 'Cours disponible')
-                            .toString();
-                        final subtitle =
-                            (course['subtitle'] ?? 'Formation artisanale')
-                                .toString();
-                        final description = (course['description'] ?? '')
-                            .toString();
-                        final imageUrl = _extractCourseImageUrl(course);
-
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: Card(
-                            elevation: 1,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (imageUrl.isNotEmpty)
-                                  ClipRRect(
-                                    borderRadius: const BorderRadius.only(
-                                      topLeft: Radius.circular(16),
-                                      topRight: Radius.circular(16),
-                                    ),
-                                    child: CachedNetworkImage(
-                                      imageUrl: imageUrl,
-                                      height: 140,
-                                      width: double.infinity,
-                                      fit: BoxFit.cover,
-                                      placeholder: (context, url) => Container(
-                                        height: 140,
-                                        color: AppColors.surfaceVariant,
-                                        child: const Center(
-                                          child: AppLoadingIndicator(),
-                                        ),
-                                      ),
-                                      errorWidget: (context, url, error) =>
-                                          Container(
-                                            height: 140,
-                                            color: AppColors.surfaceVariant,
-                                            alignment: Alignment.center,
-                                            child: const Icon(
-                                              Icons.image_not_supported,
-                                            ),
-                                          ),
-                                    ),
-                                  ),
-                                Padding(
-                                  padding: const EdgeInsets.all(16),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              title,
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .titleMedium
-                                                  ?.copyWith(
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                            ),
-                                          ),
-                                          AppBadge(
-                                            label: 'DISPONIBLE',
-                                            backgroundColor:
-                                                AppColors.secondary,
-                                            textColor: Colors.white,
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        subtitle,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodySmall
-                                            ?.copyWith(
-                                              color: AppColors.onSurfaceVariant,
-                                            ),
-                                      ),
-                                      if (description.isNotEmpty) ...[
-                                        const SizedBox(height: 8),
-                                        Text(
-                                          description,
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: Theme.of(
-                                            context,
-                                          ).textTheme.bodySmall,
-                                        ),
-                                      ],
-                                      const SizedBox(height: 12),
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: AppButton(
-                                              label: 'Voir le cours',
-                                              onPressed: () => context.push(
-                                                '/course/${course['id']}',
-                                              ),
-                                              isSmall: true,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Expanded(
-                                            child: SecondaryButton(
-                                              label: 'Postuler',
-                                              onPressed: () =>
-                                                  _showCourseApplicationSheet(
-                                                    context,
-                                                    title,
-                                                  ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    );
-                  },
-                  loading: () => const SizedBox(
-                    height: 140,
-                    child: Center(child: AppLoadingIndicator()),
+                    },
                   ),
-                  error: (err, st) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    child: Text(
-                      'Erreur cours: ${err.toString()}',
-                      style: const TextStyle(color: AppColors.error),
-                    ),
-                  ),
+                );
+              },
+              loading: () => const SizedBox(
+                height: 112,
+                child: Center(child: AppLoadingIndicator()),
+              ),
+              error: (err, st) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Text(
+                  'Erreur métiers: ${err.toString()}',
+                  style: const TextStyle(color: AppColors.error),
                 ),
+              ),
+            ),
             const SizedBox(height: 24),
           ],
         ),
@@ -710,23 +603,45 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return 'PRODUIT';
   }
 
-  String _extractCourseImageUrl(dynamic course) {
-    if (course is Map) {
-      final imageUrl = course['imageUrl'];
-      if (imageUrl != null && imageUrl.toString().isNotEmpty) {
-        return AppConstants.resolveMediaUrl(imageUrl.toString()) ?? '';
-      }
-
-      final secondaryImages = course['secondaryImages'];
-      if (secondaryImages is List && secondaryImages.isNotEmpty) {
-        final firstImage = secondaryImages.first;
-        if (firstImage != null) {
-          return AppConstants.resolveMediaUrl(firstImage.toString()) ?? '';
-        }
-      }
+  IconData _iconForMetier(String label) {
+    final l = label.toLowerCase();
+    if (l.contains('coiff')) return Icons.content_cut;
+    if (l.contains('tress')) return Icons.face_retouching_natural;
+    if (l.contains('menuis') || l.contains('ébénist') || l.contains('ebenist')) {
+      return Icons.carpenter;
     }
-
-    return '';
+    if (l.contains('charpent')) return Icons.handyman;
+    if (l.contains('tapiss')) return Icons.chair;
+    if (l.contains('maçon') || l.contains('macon') || l.contains('construction')) {
+      return Icons.construction;
+    }
+    if (l.contains('peintre') || l.contains('décorat') || l.contains('decorat')) {
+      return Icons.format_paint;
+    }
+    if (l.contains('plomb')) return Icons.plumbing;
+    if (l.contains('électric') || l.contains('electric')) {
+      return Icons.electrical_services;
+    }
+    if (l.contains('bouch')) return Icons.set_meal;
+    if (l.contains('boulang') || l.contains('pâtiss') || l.contains('patiss')) {
+      return Icons.bakery_dining;
+    }
+    if (l.contains('fromag')) return Icons.icecream;
+    if (l.contains('calligraph')) return Icons.edit;
+    if (l.contains('céramist') || l.contains('ceramist') || l.contains('sculpt')) {
+      return Icons.category;
+    }
+    if (l.contains('frigor')) return Icons.ac_unit;
+    if (l.contains('mécanic') || l.contains('mecanic')) return Icons.build;
+    if (l.contains('bijout')) return Icons.diamond;
+    if (l.contains('ferblant') || l.contains('forger') || l.contains('soud')) {
+      return Icons.local_fire_department;
+    }
+    if (l.contains('photograph')) return Icons.camera_alt;
+    if (l.contains('brodeur')) return Icons.pattern;
+    if (l.contains('cordonn') || l.contains('maroquin')) return Icons.shopping_bag;
+    if (l.contains('couturi') || l.contains('tailleur')) return Icons.checkroom;
+    return Icons.work_outline;
   }
 
   Future<void> _openAdLink(BuildContext context, String url) async {
@@ -810,92 +725,4 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  void _showCourseApplicationSheet(BuildContext context, String courseTitle) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (sheetContext) {
-        final formKey = GlobalKey<FormState>();
-        final nameController = TextEditingController();
-        final emailController = TextEditingController();
-        final motivationController = TextEditingController(
-          text: 'Je souhaite postuler au cours $courseTitle.',
-        );
-
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 16,
-            right: 16,
-            top: 16,
-            bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 16,
-          ),
-          child: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Postuler à $courseTitle',
-                  style: Theme.of(sheetContext).textTheme.headlineSmall,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Nom complet',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (value) => (value == null || value.trim().isEmpty)
-                      ? 'Veuillez renseigner votre nom'
-                      : null,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: emailController,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    border: OutlineInputBorder(),
-                  ),
-                  keyboardType: TextInputType.emailAddress,
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Veuillez renseigner votre email';
-                    }
-                    if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+').hasMatch(value)) {
-                      return 'Email invalide';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: motivationController,
-                  decoration: const InputDecoration(
-                    labelText: 'Motivation',
-                    border: OutlineInputBorder(),
-                  ),
-                  maxLines: 4,
-                  validator: (value) => (value == null || value.trim().isEmpty)
-                      ? 'Veuillez renseigner votre motivation'
-                      : null,
-                ),
-                const SizedBox(height: 16),
-                AppButton(
-                  label: 'Envoyer la candidature',
-                  onPressed: () {
-                    if (!(formKey.currentState?.validate() ?? false)) {
-                      return;
-                    }
-                    Navigator.pop(sheetContext);
-                    showSuccessSnackbar(context, 'Candidature envoyée');
-                  },
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
 }

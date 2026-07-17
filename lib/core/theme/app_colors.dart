@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  // Primary Colors
-  static const Color primary = Color(0xFFFACC15);
-  static const Color primaryDark = Color(0xFFEAB308);
-  static const Color primaryLight = Color(0xFFFEF9C3);
+  // Primary Colors — jaune exact du logo ALONU (échantillonné depuis
+  // assets/images/logo.png), plus proche du doré que l'ancien FACC15.
+  static const Color primary = Color(0xFFFFCE21);
+  static const Color primaryDark = Color(0xFFE3B100);
+  static const Color primaryLight = Color(0xFFFDF6DD);
 
   // Secondary and Accent
   static const Color secondary = Color(0xFF1B5E20);
@@ -60,7 +61,7 @@ class AppColors {
   static const LinearGradient badgeGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [primary, Color(0xFFEAB308)],
+    colors: [primary, primaryDark],
   );
 
   static const LinearGradient successGradient = LinearGradient(

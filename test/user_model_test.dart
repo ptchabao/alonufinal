@@ -1,3 +1,4 @@
+import 'package:alonu_app/core/constants/app_constants.dart';
 import 'package:alonu_app/data/models/user_model.dart';
 import 'package:alonu_app/domain/entities/user.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -26,7 +27,9 @@ void main() {
     expect(user.telephone, '123456');
     expect(user.role, UserRole.CLIENT);
     expect(user.status, UserStatus.ACTIVE);
-    expect(user.avatar, 'avatar.jpg');
+    // L'avatar est résolu en URL absolue (voir AppConstants.resolveMediaUrl),
+    // l'API renvoyant des chemins relatifs pour les fichiers uploadés.
+    expect(user.avatar, AppConstants.resolveMediaUrl('avatar.jpg'));
     expect(user.countryId, 'fr');
   });
 

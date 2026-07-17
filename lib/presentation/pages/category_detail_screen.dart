@@ -9,9 +9,13 @@ import '../widgets/widgets.dart';
 
 class CategoryDetailScreen extends ConsumerStatefulWidget {
   final String categoryId;
+  final String? initialSubcategoryId;
 
-  const CategoryDetailScreen({Key? key, required this.categoryId})
-    : super(key: key);
+  const CategoryDetailScreen({
+    Key? key,
+    required this.categoryId,
+    this.initialSubcategoryId,
+  }) : super(key: key);
 
   @override
   ConsumerState<CategoryDetailScreen> createState() =>
@@ -19,7 +23,7 @@ class CategoryDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _CategoryDetailScreenState extends ConsumerState<CategoryDetailScreen> {
-  String _selectedSubcategoryId = '';
+  late String _selectedSubcategoryId = widget.initialSubcategoryId ?? '';
 
   @override
   Widget build(BuildContext context) {

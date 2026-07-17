@@ -53,7 +53,21 @@ class AppRouter {
           return '/home';
         }
 
-        if (location.startsWith('/checkout') && !loggedIn) {
+        // Navigation libre (sans compte) : accueil, recherche, catalogue,
+        // fiches artisan/produit/cours, publicités. Routes ci-dessous
+        // réservées aux utilisateurs connectés (actions ou données propres
+        // à un compte) : redirection vers /login avec retour automatique.
+        const authRequiredPrefixes = [
+          '/checkout',
+          '/orders',
+          '/donation',
+          '/referral',
+          '/artisan-dashboard',
+          '/student-profile',
+        ];
+        final requiresAuth =
+            authRequiredPrefixes.any((prefix) => location.startsWith(prefix));
+        if (requiresAuth && !loggedIn) {
           final redirect = Uri.encodeComponent(state.uri.toString());
           return '/login?redirect=$redirect';
         }
@@ -95,7 +109,11 @@ class AppRouter {
           name: AppRoute.categoryDetail.name,
           builder: (context, state) {
             final categoryId = state.pathParameters['categoryId']!;
-            return CategoryDetailScreen(categoryId: categoryId);
+            final subCategoryId = state.uri.queryParameters['subCategoryId'];
+            return CategoryDetailScreen(
+              categoryId: categoryId,
+              initialSubcategoryId: subCategoryId,
+            );
           },
         ),
         GoRoute(

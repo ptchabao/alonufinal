@@ -13,6 +13,7 @@ import '../../data/datasources/student_remote_data_source.dart';
 import '../../data/datasources/dashboard_remote_data_source.dart';
 import '../../data/datasources/preferences_remote_data_source.dart';
 import '../../data/models/artisan_model.dart';
+import '../../domain/entities/artisan.dart' show Realisation;
 import '../../core/services/location_service.dart';
 import 'auth_provider.dart';
 
@@ -149,6 +150,18 @@ final artisanDetailProvider = FutureProvider.autoDispose
       final dataSource = ref.watch(artisanDataSourceProvider);
       try {
         return await dataSource.getArtisanDetail(artisanId);
+      } catch (e) {
+        throw Exception('Erreur: ${e.toString()}');
+      }
+    });
+
+// Artisan Realisations Provider (portfolio) — GET /artisans/{id}/realisations
+final artisanRealisationsProvider = FutureProvider.autoDispose
+    .family<List<Realisation>, String>((ref, artisanId) async {
+      final dataSource = ref.watch(artisanDataSourceProvider);
+      try {
+        final list = await dataSource.getRealisations(artisanId);
+        return list.map((m) => m.toEntity()).toList();
       } catch (e) {
         throw Exception('Erreur: ${e.toString()}');
       }
