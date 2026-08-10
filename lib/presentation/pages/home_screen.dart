@@ -10,6 +10,7 @@ import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../widgets/widgets.dart';
 import '../bloc/api_providers.dart';
+import '../bloc/cart_order_provider.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -34,6 +35,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final categoriesAsync = ref.watch(categoriesProvider);
     final artisansAsync = ref.watch(artisansProvider);
     final productsAsync = ref.watch(productsProvider);
+    final cartItemCount = ref.watch(cartProvider).itemCount;
 
     return Scaffold(
       appBar: AppBar(
@@ -54,6 +56,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         elevation: 0,
         backgroundColor: AppColors.background,
         actions: [
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.shopping_cart_outlined),
+                color: AppColors.primary,
+                onPressed: () => context.push('/cart'),
+                tooltip: 'Panier',
+              ),
+              if (cartItemCount > 0)
+                Positioned(
+                  right: 4,
+                  top: 4,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: AppColors.error,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      '$cartItemCount',
+                      style: const TextStyle(color: Colors.white, fontSize: 10),
+                    ),
+                  ),
+                ),
+            ],
+          ),
           IconButton(
             icon: const Icon(Icons.person),
             color: AppColors.primary,
@@ -401,6 +430,59 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
             const SizedBox(height: 24),
 
+            // Étudiant en vedette — annonce publique d'apprentissage
+            // (recherche d'apprenant) : GET /advertisements/apprenticeship/public,
+            // type APPRENTICE_SEARCH. Pas d'accès public à /students, donc cette
+            // annonce est la seule source légitime pour "un étudiant, un métier".
+            ref.watch(apprenticeshipAdsProvider).when(
+                  data: (ads) {
+                    final searches = ads.where((ad) {
+                      final map = ad as Map;
+                      return (map['type']?.toString() ?? '') ==
+                          'APPRENTICE_SEARCH';
+                    }).toList();
+
+                    if (searches.isEmpty) {
+                      return const SizedBox.shrink();
+                    }
+
+                    final featured =
+                        (searches.first as Map).cast<String, dynamic>();
+                    final adId = featured['id']?.toString() ?? '';
+                    final name = (featured['title'] ?? 'Étudiant').toString();
+                    final trade = (featured['subtitle'] ??
+                            featured['description'] ??
+                            'À la recherche d\'un maître artisan')
+                        .toString();
+                    final imageUrl = AppConstants.resolveMediaUrl(
+                          (featured['imageUrl'] ?? '').toString(),
+                        ) ??
+                        '';
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Étudiant en vedette',
+                          style: Theme.of(context).textTheme.headlineSmall,
+                        ),
+                        const SizedBox(height: 12),
+                        StudentSpotlightCard(
+                          imageUrl: imageUrl,
+                          name: name,
+                          trade: trade,
+                          onTap: adId.isEmpty
+                              ? () {}
+                              : () => context.push('/course/$adId'),
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+                    );
+                  },
+                  loading: () => const SizedBox.shrink(),
+                  error: (_, __) => const SizedBox.shrink(),
+                ),
+
             // Produits dynamiques
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -551,6 +633,46 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 child: Text(
                   'Erreur métiers: ${err.toString()}',
                   style: const TextStyle(color: AppColors.error),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Bannière "Gagnez un cadeau" — produits à 0 XOF, voir /gifts
+            GestureDetector(
+              onTap: () => context.push('/gifts'),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: AppColors.badgeGradient,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.card_giftcard, color: Colors.white, size: 32),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Gagnez un cadeau 🎁',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  color: AppColors.onPrimary,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
+                          Text(
+                            'Réclamez des produits offerts par nos artisans',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: AppColors.onPrimary,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.arrow_forward_ios, color: AppColors.onPrimary, size: 16),
+                  ],
                 ),
               ),
             ),

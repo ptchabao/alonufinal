@@ -6,12 +6,18 @@ class CartItem {
   final String productTitle;
   final double price;
   int quantity;
+  // Requis par CreateOrderDto : une commande cible un seul artisan, donc le
+  // panier doit regrouper ses articles par artisanId au moment de commander.
+  final String artisanId;
+  final String artisanName;
 
   CartItem({
     required this.productId,
     required this.productTitle,
     required this.price,
     required this.quantity,
+    required this.artisanId,
+    this.artisanName = '',
   });
 
   double get totalPrice => price * quantity;
@@ -21,12 +27,16 @@ class CartItem {
     String? productTitle,
     double? price,
     int? quantity,
+    String? artisanId,
+    String? artisanName,
   }) {
     return CartItem(
       productId: productId ?? this.productId,
       productTitle: productTitle ?? this.productTitle,
       price: price ?? this.price,
       quantity: quantity ?? this.quantity,
+      artisanId: artisanId ?? this.artisanId,
+      artisanName: artisanName ?? this.artisanName,
     );
   }
 }
@@ -38,6 +48,8 @@ class CartState {
   CartState({
     this.items = const [],
   }) : totalPrice = items.fold(0, (sum, item) => sum + item.totalPrice);
+
+  int get itemCount => items.fold(0, (sum, item) => sum + item.quantity);
 
   CartState copyWith({List<CartItem>? items}) {
     return CartState(items: items ?? this.items);

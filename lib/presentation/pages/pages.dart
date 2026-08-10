@@ -19,3 +19,5 @@ export 'student_profile_screen.dart';
 export 'tv_screen.dart';
 export 'course_detail_screen.dart';
 export 'artisan_dashboard_screen.dart';
+export 'cart_screen.dart';
+export 'gift_screen.dart';

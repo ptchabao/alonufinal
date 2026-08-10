@@ -27,6 +27,8 @@ enum AppRoute {
   referral,
   courseDetail,
   artisanDashboard,
+  cart,
+  gifts,
 }
 
 class AppRouter {
@@ -230,6 +232,16 @@ class AppRouter {
               path: '/profile',
               name: AppRoute.profile.name,
               builder: (context, state) => const ProfileScreen(),
+            ),
+            GoRoute(
+              path: '/cart',
+              name: AppRoute.cart.name,
+              builder: (context, state) => const CartScreen(),
+            ),
+            GoRoute(
+              path: '/gifts',
+              name: AppRoute.gifts.name,
+              builder: (context, state) => const GiftScreen(),
             ),
           ],
         ),

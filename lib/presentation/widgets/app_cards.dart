@@ -439,6 +439,116 @@ class CategoryCard extends StatelessWidget {
   }
 }
 
+/// Card "étudiant en vedette" — met en avant un apprenti cherchant un métier
+/// (annonce publique GET /advertisements/apprenticeship/public, type
+/// APPRENTICE_SEARCH). Affichée sur l'accueil juste après les artisans.
+class StudentSpotlightCard extends StatelessWidget {
+  final String imageUrl;
+  final String name;
+  final String trade;
+  final VoidCallback onTap;
+
+  const StudentSpotlightCard({
+    Key? key,
+    required this.imageUrl,
+    required this.name,
+    required this.trade,
+    required this.onTap,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          color: AppColors.surface,
+          boxShadow: AppColors.cardShadows,
+        ),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(16),
+                bottomLeft: Radius.circular(16),
+              ),
+              child: SizedBox(
+                width: 110,
+                height: 110,
+                child: imageUrl.isNotEmpty
+                    ? CachedNetworkImage(
+                        imageUrl: imageUrl,
+                        fit: BoxFit.cover,
+                        errorWidget: (context, url, error) => Container(
+                          color: AppColors.primaryLight,
+                          child: const Icon(Icons.school, color: AppColors.primary),
+                        ),
+                      )
+                    : Container(
+                        color: AppColors.primaryLight,
+                        child: const Icon(
+                          Icons.school,
+                          size: 40,
+                          color: AppColors.primary,
+                        ),
+                      ),
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        gradient: AppColors.badgeGradient,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'ÉTUDIANT EN VEDETTE',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: AppColors.onPrimary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      name,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      trade,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppColors.onSurfaceVariant,
+                          ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.only(right: 12),
+              child: Icon(Icons.arrow_forward_ios, size: 16, color: AppColors.primary),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// Card Statut Commande (Timeline)
 class OrderStatusCard extends StatelessWidget {
   final String status;

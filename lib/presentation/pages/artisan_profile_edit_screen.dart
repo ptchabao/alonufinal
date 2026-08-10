@@ -601,37 +601,188 @@ class _EditArtisanScaffold extends ConsumerWidget {
                   }),
                 ),
 
-                // Orders tab
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Consumer(builder: (context, ref, child) {
-                    final ordersAsync = ref.watch(artisanOrdersProvider(artisanId));
-                    return ordersAsync.when(
-                      loading: () => const Center(child: CircularProgressIndicator()),
-                      error: (e, st) => Center(child: Text('Erreur: $e')),
-                      data: (list) {
-                        if (list.isEmpty) return const Center(child: Text('Aucune commande'));
-                        return ListView.separated(
-                          itemCount: list.length,
-                          separatorBuilder: (context, index) => const Divider(),
-                          itemBuilder: (context, i) {
-                            final item = list[i] as Map<String, dynamic>?;
-                            final id = item?['id'] ?? item?['orderId'] ?? '—';
-                            final status = item?['status'] ?? '';
-                            return ListTile(
-                              title: Text(id.toString()),
-                              subtitle: Text(status.toString()),
-                            );
-                          },
-                        );
-                      },
-                    );
-                  }),
-                ),
+                // Orders tab — Commandes reçues (PENDING) / confirmées (CONFIRMED)
+                const _ArtisanOrdersPanel(),
               ],
             );
           },
         ),
+      ),
+    );
+  }
+}
+
+/// Onglet "Commandes" du profil artisan : deux sous-onglets suivant le cycle
+/// de vie côté artisan — Reçues (statut PENDING, à traiter) et Confirmées
+/// (statut CONFIRMED). GET /orders/artisan (JWT artisan) + PUT /orders/{id}/status.
+class _ArtisanOrdersPanel extends StatelessWidget {
+  const _ArtisanOrdersPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    return DefaultTabController(
+      length: 2,
+      child: Column(
+        children: [
+          Container(
+            margin: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceVariant,
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: TabBar(
+              indicator: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              labelColor: AppColors.onPrimary,
+              unselectedLabelColor: AppColors.onSurfaceVariant,
+              dividerColor: Colors.transparent,
+              tabs: const [
+                Tab(text: 'Reçues'),
+                Tab(text: 'Confirmées'),
+              ],
+            ),
+          ),
+          const Expanded(
+            child: TabBarView(
+              children: [
+                _ArtisanOrdersList(status: 'PENDING', canConfirm: true),
+                _ArtisanOrdersList(status: 'CONFIRMED', canConfirm: false),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ArtisanOrdersList extends ConsumerWidget {
+  final String status;
+  final bool canConfirm;
+
+  const _ArtisanOrdersList({required this.status, required this.canConfirm});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final ordersAsync = ref.watch(artisanOrdersProvider(status));
+
+    return ordersAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, st) => Center(child: Text('Erreur: $e')),
+      data: (list) {
+        if (list.isEmpty) {
+          return Center(
+            child: Text(
+              canConfirm ? 'Aucune commande reçue' : 'Aucune commande confirmée',
+              style: const TextStyle(color: AppColors.onSurfaceVariant),
+            ),
+          );
+        }
+        return ListView.separated(
+          padding: const EdgeInsets.only(bottom: 16),
+          itemCount: list.length,
+          separatorBuilder: (context, index) => const SizedBox(height: 12),
+          itemBuilder: (context, i) {
+            final order = (list[i] as Map).cast<String, dynamic>();
+            return _ArtisanOrderTile(
+              order: order,
+              showConfirmButton: canConfirm,
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _ArtisanOrderTile extends ConsumerStatefulWidget {
+  final Map<String, dynamic> order;
+  final bool showConfirmButton;
+
+  const _ArtisanOrderTile({required this.order, required this.showConfirmButton});
+
+  @override
+  ConsumerState<_ArtisanOrderTile> createState() => _ArtisanOrderTileState();
+}
+
+class _ArtisanOrderTileState extends ConsumerState<_ArtisanOrderTile> {
+  bool _isConfirming = false;
+
+  Future<void> _confirm() async {
+    final orderId = widget.order['id']?.toString();
+    if (orderId == null) return;
+
+    setState(() => _isConfirming = true);
+    try {
+      final updateStatus = ref.read(updateOrderStatusActionProvider);
+      await updateStatus(orderId, 'CONFIRMED');
+      ref.invalidate(artisanOrdersProvider('PENDING'));
+      ref.invalidate(artisanOrdersProvider('CONFIRMED'));
+      if (!mounted) return;
+      showSuccessSnackbar(context, 'Commande confirmée');
+    } catch (e) {
+      if (!mounted) return;
+      showErrorSnackbar(context, 'Erreur: $e');
+    } finally {
+      if (mounted) setState(() => _isConfirming = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final order = widget.order;
+    final orderNumber = order['orderNumber']?.toString() ?? order['id']?.toString() ?? '—';
+    final items = (order['items'] as List?) ?? const [];
+    final totalAmount = (order['totalAmount'] as num?)?.toDouble() ?? 0;
+    final currency = order['currency']?.toString() ?? 'XOF';
+    final createdAt = DateTime.tryParse(order['createdAt']?.toString() ?? '');
+    final dateLabel = createdAt != null
+        ? '${createdAt.day.toString().padLeft(2, '0')}/${createdAt.month.toString().padLeft(2, '0')}/${createdAt.year}'
+        : '';
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: AppColors.cardShadows,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Commande #$orderNumber',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${items.length} article(s)${dateLabel.isNotEmpty ? ' · $dateLabel' : ''}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.onSurfaceVariant),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${totalAmount.toStringAsFixed(0)} $currency',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+              ],
+            ),
+          ),
+          if (widget.showConfirmButton)
+            AppButton(
+              label: _isConfirming ? '...' : 'Confirmer',
+              isSmall: true,
+              isEnabled: !_isConfirming,
+              onPressed: _confirm,
+            ),
+        ],
       ),
     );
   }

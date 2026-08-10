@@ -7,6 +7,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../bloc/auth_provider.dart';
 import '../bloc/api_providers.dart';
+import '../bloc/cart_order_provider.dart';
 import '../bloc/order_provider.dart';
 import '../widgets/widgets.dart';
 import '../../core/constants/app_constants.dart';
@@ -64,6 +65,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final categoriesAsync = ref.watch(categoriesProvider);
     final artisansAsync = ref.watch(artisansProvider);
     final productsAsync = ref.watch(productsProvider);
+    final cartItemCount = ref.watch(cartProvider).itemCount;
 
     final artisans = artisansAsync.value ?? [];
     final artisanNamesById = {
@@ -114,6 +116,33 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         elevation: 0,
         backgroundColor: AppColors.background,
         actions: [
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.shopping_cart_outlined),
+                color: AppColors.primary,
+                onPressed: () => context.push('/cart'),
+                tooltip: 'Panier',
+              ),
+              if (cartItemCount > 0)
+                Positioned(
+                  right: 4,
+                  top: 4,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: AppColors.error,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      '$cartItemCount',
+                      style: const TextStyle(color: Colors.white, fontSize: 10),
+                    ),
+                  ),
+                ),
+            ],
+          ),
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: Center(
@@ -769,6 +798,11 @@ class ProfileScreen extends ConsumerWidget {
                     icon: Icons.payment,
                     title: 'Moyens de paiement',
                     onTap: () {},
+                  ),
+                  _ProfileMenuItem(
+                    icon: Icons.card_giftcard,
+                    title: 'Gagnez un cadeau',
+                    onTap: () => context.push('/gifts'),
                   ),
                   _ProfileMenuItem(
                     icon: Icons.volunteer_activism_outlined,

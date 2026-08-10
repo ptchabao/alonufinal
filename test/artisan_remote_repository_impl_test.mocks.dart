@@ -290,22 +290,32 @@ class MockArtisanRemoteDataSource extends _i1.Mock
       ) as _i4.Future<List<dynamic>>);
 
   @override
-  _i4.Future<List<dynamic>> getArtisanOrders(
-    String? artisanId, {
-    int? page = 1,
-    int? limit = 20,
-  }) =>
+  _i4.Future<List<dynamic>> getArtisanOrders({String? status}) =>
       (super.noSuchMethod(
         Invocation.method(
           #getArtisanOrders,
-          [artisanId],
-          {
-            #page: page,
-            #limit: limit,
-          },
+          [],
+          {#status: status},
         ),
         returnValue: _i4.Future<List<dynamic>>.value(<dynamic>[]),
       ) as _i4.Future<List<dynamic>>);
+
+  @override
+  _i4.Future<Map<String, dynamic>> updateOrderStatus(
+    String? orderId,
+    String? status,
+  ) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #updateOrderStatus,
+          [
+            orderId,
+            status,
+          ],
+        ),
+        returnValue:
+            _i4.Future<Map<String, dynamic>>.value(<String, dynamic>{}),
+      ) as _i4.Future<Map<String, dynamic>>);
 
   @override
   _i4.Future<_i2.ArtisanModel> createArtisan(Map<String, dynamic>? data) =>

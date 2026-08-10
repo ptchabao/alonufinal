@@ -8,6 +8,7 @@ import '../../core/theme/app_colors.dart';
 import '../../data/models/artisan_model.dart';
 import '../bloc/api_providers.dart';
 import '../bloc/auth_provider.dart';
+import '../bloc/cart_order_provider.dart';
 import '../widgets/widgets.dart';
 
 class ProductDetailScreen extends ConsumerStatefulWidget {
@@ -391,7 +392,23 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
+                Material(
+                  shape: const CircleBorder(),
+                  color: AppColors.primaryLight,
+                  child: InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: () => _addToCart(context, productData, price),
+                    child: const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: Icon(
+                        Icons.add_shopping_cart,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
                 Expanded(
                   child: AppButton(
                     label: 'Commander',
@@ -423,6 +440,34 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         title: 'Erreur de chargement',
         message: 'Impossible de charger le produit demandé.',
       ),
+    );
+  }
+
+  void _addToCart(
+    BuildContext context,
+    Map<String, dynamic> productData,
+    double price,
+  ) {
+    final artisanId = productData['artisanId']?.toString() ?? '';
+    if (artisanId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Produit indisponible pour le panier')),
+      );
+      return;
+    }
+
+    ref.read(cartProvider.notifier).addItem(
+      CartItem(
+        productId: widget.productId,
+        productTitle: (productData['title'] ?? 'Produit').toString(),
+        price: price,
+        quantity: _quantity,
+        artisanId: artisanId,
+      ),
+    );
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('$_quantity article(s) ajouté(s) au panier')),
     );
   }
 

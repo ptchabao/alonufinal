@@ -141,10 +141,18 @@ final artisanProductsProvider = FutureProvider.family<List<dynamic>, String>((re
   return dataSource.getArtisanProducts(artisanId);
 });
 
-// Provider for getting artisan orders
-final artisanOrdersProvider = FutureProvider.family<List<dynamic>, String>((ref, artisanId) async {
+// Provider for getting the connected artisan's orders, filtered by status
+// (ex: 'PENDING' pour les commandes reçues, 'CONFIRMED' pour les confirmées).
+// Passer null pour récupérer toutes les commandes.
+final artisanOrdersProvider = FutureProvider.family<List<dynamic>, String?>((ref, status) async {
   final dataSource = ref.watch(artisanRemoteDataSourceProvider);
-  return dataSource.getArtisanOrders(artisanId);
+  return dataSource.getArtisanOrders(status: status);
+});
+
+// Provider for confirming/updating an order's status (callable) — PUT /orders/{id}/status
+final updateOrderStatusActionProvider = Provider<Future<Map<String, dynamic>> Function(String, String)>((ref) {
+  final dataSource = ref.watch(artisanRemoteDataSourceProvider);
+  return (String orderId, String status) => dataSource.updateOrderStatus(orderId, status);
 });
 
 // L'API n'expose pas de /artisans/me : on retrouve le profil artisan de

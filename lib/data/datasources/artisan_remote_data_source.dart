@@ -29,7 +29,10 @@ abstract class ArtisanRemoteDataSource {
   Future<dynamic> getStudentDetail(String studentId);
   Future<dynamic> publishProduct(String artisanId, Map<String, dynamic> productData);
   Future<List<dynamic>> getArtisanProducts(String artisanId, {int page = 1, int limit = 20});
-  Future<List<dynamic>> getArtisanOrders(String artisanId, {int page = 1, int limit = 20});
+  // GET /orders/artisan — commandes de l'artisan connecté (JWT), filtrable par statut
+  Future<List<dynamic>> getArtisanOrders({String? status});
+  // PUT /orders/{id}/status
+  Future<Map<String, dynamic>> updateOrderStatus(String orderId, String status);
 
   // POST /artisans
   Future<ArtisanModel> createArtisan(Map<String, dynamic> data);
@@ -392,18 +395,37 @@ class ArtisanRemoteDataSourceImpl implements ArtisanRemoteDataSource {
   }
 
   @override
-  Future<List<dynamic>> getArtisanOrders(String artisanId,
-      {int page = 1, int limit = 20}) async {
+  Future<List<dynamic>> getArtisanOrders({String? status}) async {
     try {
       final response = await dio.get(
-        '${AppConstants.apiBaseUrl}${AppConstants.ordersEndpoint}/artisan/$artisanId',
-        queryParameters: {'page': page, 'limit': limit},
+        '${AppConstants.apiBaseUrl}${AppConstants.ordersEndpoint}/artisan',
+        queryParameters: {
+          if (status != null && status.isNotEmpty) 'status': status,
+        },
       );
 
       if (response.statusCode == 200) {
         return _extractList(response.data);
       }
       throw Exception('Erreur lors du chargement des commandes de l\'artisan');
+    } on DioException catch (e) {
+      throw _handleDioException(e);
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> updateOrderStatus(String orderId, String status) async {
+    try {
+      final response = await dio.put(
+        '${AppConstants.apiBaseUrl}${AppConstants.ordersEndpoint}/$orderId/status',
+        data: {'status': status},
+      );
+
+      if (response.statusCode == 200) {
+        return _extractJson(response.data) as Map<String, dynamic>?
+            ?? (response.data as Map<String, dynamic>);
+      }
+      throw Exception('Erreur lors de la mise à jour du statut de la commande');
     } on DioException catch (e) {
       throw _handleDioException(e);
     }
