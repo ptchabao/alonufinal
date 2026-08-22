@@ -216,7 +216,13 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
   }
 
   Widget _buildPhoneInput() {
-    final current = _networks.firstWhere((entry) => entry['key'] == selectedNetwork);
+    // IndexedStack construit tous les steps dès le premier build (y compris
+    // celui-ci, alors que _step == 0 et selectedNetwork encore null) : il
+    // faut donc un repli, sinon firstWhere lève "Bad state: no element".
+    final current = _networks.firstWhere(
+      (entry) => entry['key'] == selectedNetwork,
+      orElse: () => _networks.first,
+    );
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),

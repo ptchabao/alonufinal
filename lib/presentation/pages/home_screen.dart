@@ -10,6 +10,7 @@ import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../widgets/widgets.dart';
 import '../bloc/api_providers.dart';
+import '../bloc/auth_provider.dart';
 import '../bloc/cart_order_provider.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -572,7 +573,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             // (ex: Coiffeurs, Menuisiers, Électriciens...), pas les
             // publicités d'apprentissage (souvent vides côté API).
             Text(
-              'Apprendre un métier',
+              'Un étudiant, un métier',
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 12),
@@ -674,6 +675,113 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     const Icon(Icons.arrow_forward_ios, color: AppColors.onPrimary, size: 16),
                   ],
                 ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Carte "Un étudiant, un métier" — mise en avant du module
+            // d'apprentissage, même gabarit que les cartes de publicité.
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [AppColors.primary, AppColors.primaryDark],
+                ),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: AppColors.cardShadowsElevated,
+              ),
+              child: Stack(
+                children: [
+                  Positioned(
+                    right: -16,
+                    bottom: -16,
+                    child: Icon(
+                      Icons.school,
+                      size: 130,
+                      color: Colors.white.withValues(alpha: 0.10),
+                    ),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          'FORMATION',
+                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1.2,
+                              ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        'Un étudiant, un métier',
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: 230,
+                        child: Text(
+                          'Rejoignez ALONU et apprenez un métier aux côtés d\'un artisan formateur expérimenté.',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: Colors.white.withValues(alpha: 0.9),
+                              ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Material(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(30),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(30),
+                          onTap: () {
+                            // POST /students n'exige qu'un userId + countryId :
+                            // n'importe quel compte connecté peut créer un
+                            // profil étudiant (StudentProfileScreen l'offre
+                            // déjà via _CreateStudentProfileForm s'il n'en a
+                            // pas encore).
+                            if (ref.read(authProvider).isAuthenticated) {
+                              context.push('/student-profile');
+                            } else {
+                              context.go(
+                                '/login?redirect=${Uri.encodeComponent('/student-profile')}',
+                              );
+                            }
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'Devenir apprenti',
+                                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                        color: AppColors.primary,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                ),
+                                const SizedBox(width: 8),
+                                const Icon(Icons.arrow_forward, size: 18, color: AppColors.primary),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 24),
