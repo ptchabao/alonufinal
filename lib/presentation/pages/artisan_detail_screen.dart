@@ -125,7 +125,14 @@ class _ArtisanDetailScreenState extends ConsumerState<ArtisanDetailScreen>
                         onTap: () {
                           final link =
                               '${AppConstants.apiBaseUrl}/share/artisan/${widget.artisanId}';
-                          Share.share('$artisanName sur ALONU\n$link');
+                          // sharePositionOrigin requis sur iPad (popover),
+                          // voir la même remarque dans product_detail_screen.dart.
+                          final box = context.findRenderObject() as RenderBox?;
+                          Share.share(
+                            '$artisanName sur ALONU\n$link',
+                            sharePositionOrigin:
+                                box != null ? box.localToGlobal(Offset.zero) & box.size : null,
+                          );
                         },
                         child: const Icon(
                           Icons.share_outlined,

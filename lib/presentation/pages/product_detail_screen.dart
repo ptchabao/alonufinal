@@ -461,7 +461,14 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   void _shareProduct(BuildContext context, Map<String, dynamic> productData) {
     final title = (productData['title'] ?? 'Produit').toString();
     final link = '${AppConstants.apiBaseUrl}/share/product/${widget.productId}';
-    Share.share('$title sur ALONU\n$link');
+    // sharePositionOrigin est requis sur iPad (popover) : share_plus renvoie
+    // une erreur sans ce rect d'ancrage sur les appareils avec
+    // popoverPresentationController (iPad).
+    final box = context.findRenderObject() as RenderBox?;
+    Share.share(
+      '$title sur ALONU\n$link',
+      sharePositionOrigin: box != null ? box.localToGlobal(Offset.zero) & box.size : null,
+    );
   }
 
   void _addToCart(
