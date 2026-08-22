@@ -88,6 +88,9 @@ dependencies:
   # Native share sheet (produits/artisans)
   share_plus: ^10.1.4
 
+  # Icônes de marque (WhatsApp...) absentes du set Material
+  font_awesome_flutter: ^10.8.0
+
   # Form Validation
   reactive_forms: ^16.0.0
   google_fonts: ^8.1.0

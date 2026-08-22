@@ -33,6 +33,7 @@ enum AppRoute {
   microfinance,
   changePassword,
   editProfile,
+  favorites,
 }
 
 class AppRouter {
@@ -270,6 +271,11 @@ class AppRouter {
               path: '/edit-profile',
               name: AppRoute.editProfile.name,
               builder: (context, state) => const EditProfileScreen(),
+            ),
+            GoRoute(
+              path: '/favorites',
+              name: AppRoute.favorites.name,
+              builder: (context, state) => const FavoritesScreen(),
             ),
           ],
         ),

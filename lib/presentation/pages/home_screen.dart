@@ -569,88 +569,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Apprendre un métier — les sous-catégories réelles de l'API
-            // (ex: Coiffeurs, Menuisiers, Électriciens...), pas les
-            // publicités d'apprentissage (souvent vides côté API).
-            Text(
-              'Un étudiant, un métier',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 12),
-            categoriesAsync.when(
-              data: (categories) {
-                final metiers = <(String categoryId, String subCategoryId, String label)>[];
-                for (final category in categories) {
-                  for (final sub in category.subCategories) {
-                    final label = sub.libelleFr.isNotEmpty
-                        ? sub.libelleFr
-                        : sub.libelle;
-                    if (label.isEmpty) continue;
-                    metiers.add((category.id, sub.id, label));
-                  }
-                }
-
-                if (metiers.isEmpty) {
-                  return Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceVariant,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Text(
-                      'Aucun métier disponible pour le moment.',
-                    ),
-                  );
-                }
-
-                return SizedBox(
-                  height: 112,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: metiers.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 12),
-                    itemBuilder: (context, index) {
-                      final metier = metiers[index];
-                      return SizedBox(
-                        width: 96,
-                        child: CategoryCard(
-                          label: metier.$3,
-                          icon: _iconForMetier(metier.$3),
-                          onTap: () => context.push(
-                            '/category/${metier.$1}?subCategoryId=${metier.$2}',
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                );
-              },
-              loading: () => const SizedBox(
-                height: 112,
-                child: Center(child: AppLoadingIndicator()),
-              ),
-              error: (err, st) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Text(
-                  'Erreur métiers: ${err.toString()}',
-                  style: const TextStyle(color: AppColors.error),
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-
             // Bannière "Gagnez un cadeau" — produits à 0 XOF, voir /gifts
             GestureDetector(
               onTap: () => context.push('/gifts'),
               child: Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  gradient: AppColors.badgeGradient,
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [AppColors.secondary, Color(0xFFE3B100)],
+                  ),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.card_giftcard, color: Colors.white, size: 32),
+                    const Icon(Icons.card_giftcard, color: AppColors.onSurface, size: 32),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -659,20 +593,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           Text(
                             'Gagnez un cadeau 🎁',
                             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  color: AppColors.onPrimary,
+                                  color: AppColors.onSurface,
                                   fontWeight: FontWeight.bold,
                                 ),
                           ),
                           Text(
                             'Réclamez des produits offerts par nos artisans',
                             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: AppColors.onPrimary,
+                                  color: AppColors.onSurface,
                                 ),
                           ),
                         ],
                       ),
                     ),
-                    const Icon(Icons.arrow_forward_ios, color: AppColors.onPrimary, size: 16),
+                    const Icon(Icons.arrow_forward_ios, color: AppColors.onSurface, size: 16),
                   ],
                 ),
               ),
@@ -831,47 +765,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
 
     return 'PRODUIT';
-  }
-
-  IconData _iconForMetier(String label) {
-    final l = label.toLowerCase();
-    if (l.contains('coiff')) return Icons.content_cut;
-    if (l.contains('tress')) return Icons.face_retouching_natural;
-    if (l.contains('menuis') || l.contains('ébénist') || l.contains('ebenist')) {
-      return Icons.carpenter;
-    }
-    if (l.contains('charpent')) return Icons.handyman;
-    if (l.contains('tapiss')) return Icons.chair;
-    if (l.contains('maçon') || l.contains('macon') || l.contains('construction')) {
-      return Icons.construction;
-    }
-    if (l.contains('peintre') || l.contains('décorat') || l.contains('decorat')) {
-      return Icons.format_paint;
-    }
-    if (l.contains('plomb')) return Icons.plumbing;
-    if (l.contains('électric') || l.contains('electric')) {
-      return Icons.electrical_services;
-    }
-    if (l.contains('bouch')) return Icons.set_meal;
-    if (l.contains('boulang') || l.contains('pâtiss') || l.contains('patiss')) {
-      return Icons.bakery_dining;
-    }
-    if (l.contains('fromag')) return Icons.icecream;
-    if (l.contains('calligraph')) return Icons.edit;
-    if (l.contains('céramist') || l.contains('ceramist') || l.contains('sculpt')) {
-      return Icons.category;
-    }
-    if (l.contains('frigor')) return Icons.ac_unit;
-    if (l.contains('mécanic') || l.contains('mecanic')) return Icons.build;
-    if (l.contains('bijout')) return Icons.diamond;
-    if (l.contains('ferblant') || l.contains('forger') || l.contains('soud')) {
-      return Icons.local_fire_department;
-    }
-    if (l.contains('photograph')) return Icons.camera_alt;
-    if (l.contains('brodeur')) return Icons.pattern;
-    if (l.contains('cordonn') || l.contains('maroquin')) return Icons.shopping_bag;
-    if (l.contains('couturi') || l.contains('tailleur')) return Icons.checkroom;
-    return Icons.work_outline;
   }
 
   Future<void> _openAdLink(BuildContext context, String url) async {

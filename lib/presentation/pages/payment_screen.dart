@@ -102,6 +102,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
   String phoneNumber = '';
   String _processingMessage = 'Initialisation du paiement...';
   bool _pollingTimedOut = false;
+  bool _pollCancelled = false;
 
   @override
   Widget build(BuildContext context) {
@@ -331,6 +332,14 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                 ],
               ),
             ),
+            const SizedBox(height: 24),
+            SecondaryButton(
+              label: 'Annuler l\'attente',
+              onPressed: () {
+                _pollCancelled = true;
+                setState(() => _step = 1);
+              },
+            ),
           ],
         ),
       ),
@@ -416,6 +425,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
       _step = 2;
       _processingMessage = 'Initialisation du paiement...';
       _pollingTimedOut = false;
+      _pollCancelled = false;
     });
 
     try {
@@ -430,7 +440,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
 
       final finalStatus = await _pollPaymentStatus(paymentId);
 
-      if (!mounted) return;
+      if (!mounted || _pollCancelled) return;
       if (finalStatus == 'COMPLETED') {
         setState(() => _step = 3);
       } else if (_pollingTimedOut) {
@@ -450,7 +460,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
         );
       }
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted || _pollCancelled) return;
       setState(() => _step = 1);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Erreur de paiement: ${error.toString()}')),
@@ -459,7 +469,8 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
   }
 
   /// Interroge GET /payments/{paymentId}/status toutes les 3s jusqu'à un
-  /// statut terminal (COMPLETED/FAILED/REFUNDED) ou 90s d'attente.
+  /// statut terminal (COMPLETED/FAILED/REFUNDED), 90s d'attente, ou
+  /// annulation manuelle (bouton "Annuler l'attente").
   Future<String> _pollPaymentStatus(String paymentId) async {
     final getStatus = ref.read(getPaymentStatusActionProvider);
     const maxAttempts = 30;
@@ -467,7 +478,12 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
 
     for (var attempt = 0; attempt < maxAttempts; attempt++) {
       await Future.delayed(interval);
-      if (!mounted) return 'CANCELLED';
+      if (!mounted || _pollCancelled) return 'CANCELLED';
+
+      if (mounted) {
+        setState(() => _processingMessage =
+            'En attente de confirmation sur votre téléphone... (${attempt + 1}/$maxAttempts)');
+      }
 
       try {
         final status = (await getStatus(paymentId))['status']?.toString() ?? 'PENDING';

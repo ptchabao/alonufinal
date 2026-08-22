@@ -10,6 +10,7 @@ import '../../data/models/artisan_model.dart';
 import '../bloc/api_providers.dart';
 import '../bloc/auth_provider.dart';
 import '../bloc/cart_order_provider.dart';
+import '../bloc/favorites_provider.dart';
 import '../widgets/widgets.dart';
 
 class ProductDetailScreen extends ConsumerStatefulWidget {
@@ -99,22 +100,22 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               ),
               Padding(
                 padding: const EdgeInsets.all(8.0),
-                child: Material(
-                  shape: const CircleBorder(),
-                  color: AppColors.surface,
-                  child: InkWell(
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Produit ajouté aux favoris'),
+                child: Consumer(
+                  builder: (context, ref, _) {
+                    final isFavorite =
+                        ref.watch(favoritesProvider).isProductFavorite(widget.productId);
+                    return Material(
+                      shape: const CircleBorder(),
+                      color: AppColors.surface,
+                      child: InkWell(
+                        onTap: () => ref.read(favoritesProvider.notifier).toggleProduct(widget.productId),
+                        child: Icon(
+                          isFavorite ? Icons.favorite : Icons.favorite_border,
+                          color: AppColors.accent,
                         ),
-                      );
-                    },
-                    child: const Icon(
-                      Icons.favorite_border,
-                      color: AppColors.accent,
-                    ),
-                  ),
+                      ),
+                    );
+                  },
                 ),
               ),
             ],

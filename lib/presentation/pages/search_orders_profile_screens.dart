@@ -804,7 +804,7 @@ class ProfileScreen extends ConsumerWidget {
                   _ProfileMenuItem(
                     icon: Icons.favorite_border,
                     title: 'Favoris',
-                    onTap: () {},
+                    onTap: () => context.push('/favorites'),
                   ),
                   _ProfileMenuItem(
                     icon: Icons.location_on_outlined,

@@ -12,6 +12,8 @@ import '../../data/models/artisan_model.dart';
 import '../../domain/entities/artisan.dart' show Realisation;
 import '../bloc/api_providers.dart';
 import '../bloc/auth_provider.dart';
+import '../bloc/favorites_provider.dart';
+import '../providers/artisan_provider.dart' show artisanProductsProvider;
 import '../widgets/widgets.dart';
 
 class ArtisanDetailScreen extends ConsumerStatefulWidget {
@@ -44,7 +46,10 @@ class _ArtisanDetailScreenState extends ConsumerState<ArtisanDetailScreen>
   @override
   Widget build(BuildContext context) {
     final artisanAsync = ref.watch(artisanDetailProvider(widget.artisanId));
-    final productsAsync = ref.watch(productsProvider);
+    // GET /products/artisan/{artisanId} — dédié, plutôt que de filtrer
+    // côté client la liste globale GET /products (moins fiable : dépend de
+    // la pagination et télécharge tous les produits de la plateforme).
+    final productsAsync = ref.watch(artisanProductsProvider(widget.artisanId));
     final realizationsAsync =
         ref.watch(artisanRealisationsProvider(widget.artisanId));
 
@@ -72,21 +77,11 @@ class _ArtisanDetailScreenState extends ConsumerState<ArtisanDetailScreen>
         final distance = distanceValue > 0
             ? '${distanceValue.toStringAsFixed(1)} km'
             : 'Distance non renseignée';
-        final reviewCount = (productsAsync.value ?? [])
-            .where(
-              (item) =>
-                  (item['artisanId'] ?? '').toString() == widget.artisanId,
-            )
-            .length;
+        final products = productsAsync.value ?? [];
+        final reviewCount = products.length;
         final rating = 4.5 + (reviewCount % 5) * 0.1;
         final isMasterArtisan = artisanModel.actif;
         final services = _extractServices(artisan);
-        final products = (productsAsync.value ?? [])
-            .where(
-              (item) =>
-                  (item['artisanId'] ?? '').toString() == widget.artisanId,
-            )
-            .toList();
         final realizations = realizationsAsync.value ?? const <Realisation>[];
         final safeSelectedIndex = realizations.isEmpty
             ? 0
@@ -143,20 +138,25 @@ class _ArtisanDetailScreenState extends ConsumerState<ArtisanDetailScreen>
                   ),
                   Padding(
                     padding: const EdgeInsets.all(8.0),
-                    child: Material(
-                      shape: const CircleBorder(),
-                      color: AppColors.surface.withValues(alpha: 0.9),
-                      child: InkWell(
-                        onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Ajouté aux favoris')),
-                          );
-                        },
-                        child: const Icon(
-                          Icons.favorite_border,
-                          color: AppColors.accent,
-                        ),
-                      ),
+                    child: Consumer(
+                      builder: (context, ref, _) {
+                        final isFavorite = ref
+                            .watch(favoritesProvider)
+                            .isArtisanFavorite(widget.artisanId);
+                        return Material(
+                          shape: const CircleBorder(),
+                          color: AppColors.surface.withValues(alpha: 0.9),
+                          child: InkWell(
+                            onTap: () => ref
+                                .read(favoritesProvider.notifier)
+                                .toggleArtisan(widget.artisanId),
+                            child: Icon(
+                              isFavorite ? Icons.favorite : Icons.favorite_border,
+                              color: AppColors.accent,
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ],
@@ -216,15 +216,38 @@ class _ArtisanDetailScreenState extends ConsumerState<ArtisanDetailScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          artisanName,
-                          style: Theme.of(context).textTheme.headlineMedium
-                              ?.copyWith(fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          specialty,
-                          style: Theme.of(context).textTheme.bodyMedium,
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            CircleAvatar(
+                              radius: 28,
+                              backgroundColor: AppColors.primaryLight,
+                              backgroundImage: (artisanModel.user.avatar?.isNotEmpty ?? false)
+                                  ? CachedNetworkImageProvider(artisanModel.user.avatar!)
+                                  : null,
+                              child: (artisanModel.user.avatar?.isNotEmpty ?? false)
+                                  ? null
+                                  : const Icon(Icons.person, color: AppColors.primary, size: 28),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    artisanName,
+                                    style: Theme.of(context).textTheme.headlineMedium
+                                        ?.copyWith(fontWeight: FontWeight.bold),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    specialty,
+                                    style: Theme.of(context).textTheme.bodyMedium,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 12),
                         Row(
@@ -597,6 +620,10 @@ class _ArtisanDetailScreenState extends ConsumerState<ArtisanDetailScreen>
     List<dynamic> products,
   ) {
     final artisanName = _extractArtisanName(artisan);
+
+    if (products.isEmpty) {
+      return const Center(child: Text('Aucun produit ou service pour le moment.'));
+    }
 
     return GridView.builder(
       padding: const EdgeInsets.all(16),
