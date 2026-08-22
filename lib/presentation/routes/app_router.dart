@@ -29,6 +29,10 @@ enum AppRoute {
   artisanDashboard,
   cart,
   gifts,
+  payGeneric,
+  microfinance,
+  changePassword,
+  editProfile,
 }
 
 class AppRouter {
@@ -225,7 +229,7 @@ class AppRouter {
               name: AppRoute.payment.name,
               builder: (context, state) {
                 final orderId = state.pathParameters['orderId']!;
-                return PaymentScreen(orderId: orderId);
+                return OrderPaymentScreen(orderId: orderId);
               },
             ),
             GoRoute(
@@ -242,6 +246,30 @@ class AppRouter {
               path: '/gifts',
               name: AppRoute.gifts.name,
               builder: (context, state) => const GiftScreen(),
+            ),
+            // Hôte générique pour tout paiement PayGate hors commande (don,
+            // abonnement, adhésion microfinance) : l'appelant pousse un
+            // PaymentScreen déjà configuré via `extra`, plutôt que de
+            // dupliquer une route nommée par cas d'usage.
+            GoRoute(
+              path: '/pay',
+              name: AppRoute.payGeneric.name,
+              builder: (context, state) => state.extra as Widget,
+            ),
+            GoRoute(
+              path: '/microfinance',
+              name: AppRoute.microfinance.name,
+              builder: (context, state) => const MicrofinanceScreen(),
+            ),
+            GoRoute(
+              path: '/change-password',
+              name: AppRoute.changePassword.name,
+              builder: (context, state) => const ChangePasswordScreen(),
+            ),
+            GoRoute(
+              path: '/edit-profile',
+              name: AppRoute.editProfile.name,
+              builder: (context, state) => const EditProfileScreen(),
             ),
           ],
         ),

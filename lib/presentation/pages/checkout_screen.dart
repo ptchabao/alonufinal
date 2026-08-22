@@ -18,31 +18,13 @@ class CheckoutScreen extends ConsumerStatefulWidget {
 class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   int _currentStep = 0;
   int quantity = 1;
-  String? selectedDeliveryType;
-  String? firstName;
-  String? lastName;
-  String? email;
-  String? phone;
-  String? address;
-  String? city;
+  final TextEditingController _addressController = TextEditingController();
   bool _isSubmitting = false;
 
-  final List<String> deliveryTypes = [
-    'Standard (5-7 jours)',
-    'Express (2-3 jours)',
-  ];
-  final List<String> cities = [
-    'Cotonou',
-    'Abomey-Calavi',
-    'Porto-Novo',
-    'Parakou',
-    'Djougou',
-  ];
-
   @override
-  void initState() {
-    super.initState();
-    selectedDeliveryType = deliveryTypes.first;
+  void dispose() {
+    _addressController.dispose();
+    super.dispose();
   }
 
   @override
@@ -262,37 +244,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 24),
-          Text(
-            'Mode de livraison',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 12),
-          RadioGroup<String>(
-            groupValue: selectedDeliveryType,
-            onChanged: (value) => setState(() => selectedDeliveryType = value),
-            child: Column(
-              children: deliveryTypes.map((type) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: selectedDeliveryType == type
-                            ? AppColors.primary
-                            : AppColors.surfaceVariant,
-                      ),
-                    ),
-                    child: RadioListTile<String>(
-                      value: type,
-                      title: Text(type),
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
         ],
       ),
     );
@@ -305,74 +256,20 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Informations de livraison',
+            'Adresse de livraison',
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 16),
           TextFormField(
-            decoration: InputDecoration(
-              label: const Text('Prénom'),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            onChanged: (value) => firstName = value,
-          ),
-          const SizedBox(height: 12),
-          TextFormField(
-            decoration: InputDecoration(
-              label: const Text('Nom'),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            onChanged: (value) => lastName = value,
-          ),
-          const SizedBox(height: 12),
-          TextFormField(
-            decoration: InputDecoration(
-              label: const Text('Email'),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            keyboardType: TextInputType.emailAddress,
-            onChanged: (value) => email = value,
-          ),
-          const SizedBox(height: 12),
-          TextFormField(
-            decoration: InputDecoration(
-              label: const Text('Téléphone'),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            keyboardType: TextInputType.phone,
-            onChanged: (value) => phone = value,
-          ),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            decoration: InputDecoration(
-              label: const Text('Ville'),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            items: cities.map((c) {
-              return DropdownMenuItem(value: c, child: Text(c));
-            }).toList(),
-            onChanged: (value) => setState(() => city = value),
-          ),
-          const SizedBox(height: 12),
-          TextFormField(
+            controller: _addressController,
             decoration: InputDecoration(
               label: const Text('Adresse complète'),
+              hintText: 'Ex: 123 Rue principale, Lomé',
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            maxLines: 2,
-            onChanged: (value) => address = value,
+            maxLines: 3,
           ),
         ],
       ),
@@ -383,11 +280,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final productMap = product is Map
         ? product.cast<String, dynamic>()
         : <String, dynamic>{};
-    final subtotal = _extractPrice(productMap) * quantity;
-    final delivery = selectedDeliveryType?.contains('Express') ?? false
-        ? 10000.0
-        : 5000.0;
-    final total = subtotal + delivery;
+    final total = _extractPrice(productMap) * quantity;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -408,48 +301,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Client', style: Theme.of(context).textTheme.titleSmall),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Nom:'),
-                    Text('${firstName ?? ''} ${lastName ?? ''}'.trim()),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [const Text('Email:'), Text(email ?? '')],
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [const Text('Tél:'), Text(phone ?? '')],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceVariant,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
                 Text(
-                  'Livraison',
+                  'Adresse de livraison',
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
                 const SizedBox(height: 8),
-                Text(address ?? ''),
-                Text(
-                  '$city - Bénin',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
+                Text(_addressController.text),
               ],
             ),
           ),
@@ -460,40 +317,19 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               color: AppColors.primaryLight,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Sous-total:'),
-                    Text('${subtotal.toStringAsFixed(0)} XOF'),
-                  ],
+                Text(
+                  'Total:',
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Livraison:'),
-                    Text('${delivery.toStringAsFixed(0)} XOF'),
-                  ],
-                ),
-                const Divider(),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Total:',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    Text(
-                      '${total.toStringAsFixed(0)} XOF',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
+                Text(
+                  '${total.toStringAsFixed(0)} XOF',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
             ),
@@ -512,23 +348,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   }
 
   Future<void> _submitOrder() async {
-    if (firstName == null ||
-        firstName!.trim().isEmpty ||
-        lastName == null ||
-        lastName!.trim().isEmpty ||
-        email == null ||
-        email!.trim().isEmpty ||
-        phone == null ||
-        phone!.trim().isEmpty ||
-        address == null ||
-        address!.trim().isEmpty ||
-        city == null ||
-        city!.trim().isEmpty) {
+    if (_addressController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'Veuillez remplir toutes les informations de livraison.',
-          ),
+          content: Text('Veuillez renseigner une adresse de livraison.'),
         ),
       );
       return;
@@ -540,12 +363,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         ? product.cast<String, dynamic>()
         : <String, dynamic>{};
 
-    final price = _extractPrice(productMap);
-    final subtotal = price * quantity;
-    final delivery = selectedDeliveryType?.contains('Express') ?? false
-        ? 10000.0
-        : 5000.0;
-    final total = subtotal + delivery;
+    final artisanId = (productMap['artisanId'] ?? productMap['artisan']?['id'])
+        ?.toString();
+    if (artisanId == null || artisanId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Artisan introuvable pour ce produit.')),
+      );
+      return;
+    }
 
     setState(() => _isSubmitting = true);
 
@@ -553,28 +378,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       final createdOrder = await ref
           .read(createOrderProvider.notifier)
           .createOrder({
-            'customerName': '${firstName!.trim()} ${lastName!.trim()}',
-            'customerEmail': email!.trim(),
-            'customerPhone': phone!.trim(),
-            'deliveryAddress': address!.trim(),
-            'city': city!.trim(),
-            'deliveryType': selectedDeliveryType,
-            'status': 'pending',
-            'subtotal': subtotal,
-            'deliveryFee': delivery,
-            'totalAmount': total,
-            'currency': 'XOF',
+            'artisanId': artisanId,
             'items': [
               {
                 'productId': productMap['id'] ?? widget.productId,
                 'quantity': quantity,
-                'unitPrice': price,
-                'totalPrice': subtotal,
-                'title': (productMap['title'] ?? 'Produit').toString(),
-                'artisanId':
-                    productMap['artisanId'] ?? productMap['artisan']?['id'],
               },
             ],
+            'deliveryAddress': _addressController.text.trim(),
           });
 
       final orderId = _extractOrderId(createdOrder);

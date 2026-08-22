@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -6,46 +8,106 @@ import '../../core/theme/app_colors.dart';
 import '../bloc/api_providers.dart';
 import '../widgets/widgets.dart';
 
+/// Écran de paiement PayGate générique — réutilisé pour le paiement d'une
+/// commande, d'un abonnement (artisan/étudiant) et d'une adhésion
+/// microfinance. PayGate étant asynchrone (push USSD sur le téléphone du
+/// client), [initiate] renvoie un `paymentId` que cet écran suit ensuite par
+/// polling (`GET /payments/{paymentId}/status`) jusqu'à COMPLETED/FAILED.
 class PaymentScreen extends ConsumerStatefulWidget {
-  final String orderId;
+  final String title;
+  final String reference;
+  final double? amount;
+  final String currency;
+  final Future<Map<String, dynamic>> Function(String phoneNumber, String network) initiate;
+  final VoidCallback onSuccess;
 
-  const PaymentScreen({super.key, required this.orderId});
+  const PaymentScreen({
+    super.key,
+    required this.title,
+    required this.reference,
+    required this.amount,
+    required this.initiate,
+    required this.onSuccess,
+    this.currency = 'XOF',
+  });
+
+  /// Construit un écran de paiement pour une commande — GET /orders/{id} pour
+  /// le montant, POST /payments/order/{orderId}/initiate pour l'initiation.
+  factory PaymentScreen.forOrder({
+    Key? key,
+    required String orderId,
+    required double amount,
+    required WidgetRef ref,
+    required BuildContext context,
+  }) {
+    return PaymentScreen(
+      key: key,
+      title: 'Paiement de la commande',
+      reference: orderId,
+      amount: amount,
+      currency: 'XOF',
+      initiate: (phone, network) => ref.read(initiateOrderPaymentActionProvider)(
+        orderId,
+        phone,
+        network,
+      ),
+      onSuccess: () => context.go('/orders'),
+    );
+  }
 
   @override
   ConsumerState<PaymentScreen> createState() => _PaymentScreenState();
 }
 
+/// Point d'entrée route `/payment/:orderId` — charge la commande (montant)
+/// puis délègue à [PaymentScreen.forOrder].
+class OrderPaymentScreen extends ConsumerWidget {
+  final String orderId;
+
+  const OrderPaymentScreen({super.key, required this.orderId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final orderAsync = ref.watch(orderDetailProvider(orderId));
+
+    return orderAsync.when(
+      data: (order) {
+        final amount = order is Map
+            ? ((order['totalAmount'] as num?)?.toDouble() ?? 0)
+            : 0.0;
+        return PaymentScreen.forOrder(
+          orderId: orderId,
+          amount: amount,
+          ref: ref,
+          context: context,
+        );
+      },
+      loading: () => const Scaffold(body: Center(child: AppLoadingIndicator())),
+      error: (err, _) => Scaffold(
+        appBar: AppBar(title: const Text('Paiement')),
+        body: Center(child: Text('Erreur: $err')),
+      ),
+    );
+  }
+}
+
+const _networks = [
+  {'key': 'FLOOZ', 'emoji': '🟠', 'label': 'FLOOZ', 'desc': 'Paiement mobile money Moov'},
+  {'key': 'TMONEY', 'emoji': '🟡', 'label': 'T-Money', 'desc': 'Paiement mobile money Togocel'},
+];
+
 class _PaymentScreenState extends ConsumerState<PaymentScreen> {
   int _step = 0;
-  String? selectedOperator;
+  String? selectedNetwork;
   String phoneNumber = '';
-
-  final Map<String, Map<String, String>> fallbackOperators = {
-    'FLOOZ': {
-      'image': '🟠',
-      'desc': 'Paiement FLOOZ - MTN Bénin',
-      'prefix': '+229',
-    },
-    'TMONEY': {
-      'image': '🟡',
-      'desc': 'Paiement TMONEY - Moov Bénin',
-      'prefix': '+229',
-    },
-  };
+  String _processingMessage = 'Initialisation du paiement...';
+  bool _pollingTimedOut = false;
 
   @override
   Widget build(BuildContext context) {
-    final orderAsync = ref.watch(orderDetailProvider(widget.orderId));
-    final paymentMethodsAsync = ref.watch(paymentMethodsProvider);
-
-    final orderData = orderAsync.value;
-    final paymentMethods = paymentMethodsAsync.value ?? [];
-    final operatorOptions = _normalizeOperators(paymentMethods);
-    final displayAmount = _extractAmount(orderData);
-
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Paiement'),
+        title: Text(widget.title),
         leading: _step < 3
             ? Padding(
                 padding: const EdgeInsets.all(8.0),
@@ -60,10 +122,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                         setState(() => _step--);
                       }
                     },
-                    child: const Icon(
-                      Icons.arrow_back,
-                      color: AppColors.primary,
-                    ),
+                    child: const Icon(Icons.arrow_back, color: AppColors.primary),
                   ),
                 ),
               )
@@ -73,55 +132,37 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
       body: IndexedStack(
         index: _step,
         children: [
-          _buildOperatorSelection(operatorOptions),
-          _buildPhoneInput(operatorOptions, displayAmount),
-          _buildProcessing(displayAmount),
-          _buildSuccess(displayAmount),
+          _buildNetworkSelection(),
+          _buildPhoneInput(),
+          _buildProcessing(),
+          _buildSuccess(),
         ],
       ),
     );
   }
 
-  Widget _buildOperatorSelection(List<Map<String, dynamic>> operatorOptions) {
-    final available = operatorOptions.isEmpty
-        ? fallbackOperators.entries
-              .map(
-                (entry) => {
-                  'key': entry.key,
-                  'display': entry.key,
-                  'description': entry.value['desc'],
-                  'emoji': entry.value['image'],
-                },
-              )
-              .toList()
-        : operatorOptions;
+  String get _amountLabel => widget.amount != null
+      ? '${widget.amount!.toStringAsFixed(0)} ${widget.currency}'
+      : 'Montant déterminé par le serveur';
 
+  Widget _buildNetworkSelection() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Choisissez votre opérateur',
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
+          Text('Choisissez votre opérateur', style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: 8),
           Text(
             'Sélectionnez le moyen de paiement mobile money',
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: AppColors.onSurfaceVariant),
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.onSurfaceVariant),
           ),
           const SizedBox(height: 32),
-          ...available.map((entry) {
-            final key = entry['key'].toString();
-            final displayName = entry['display']?.toString() ?? key;
-            final description = entry['description']?.toString() ?? '';
-            final emoji = entry['emoji']?.toString() ?? '💳';
-            final isSelected = selectedOperator == key;
-
+          ..._networks.map((entry) {
+            final key = entry['key']!;
+            final isSelected = selectedNetwork == key;
             return GestureDetector(
-              onTap: () => setState(() => selectedOperator = key),
+              onTap: () => setState(() => selectedNetwork = key),
               child: Padding(
                 padding: const EdgeInsets.only(bottom: 16),
                 child: AnimatedContainer(
@@ -130,42 +171,30 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: isSelected
-                          ? AppColors.primary
-                          : AppColors.surfaceVariant,
+                      color: isSelected ? AppColors.primary : AppColors.surfaceVariant,
                       width: isSelected ? 2 : 1,
                     ),
-                    color: isSelected
-                        ? AppColors.primaryLight
-                        : Colors.transparent,
+                    color: isSelected ? AppColors.primaryLight : Colors.transparent,
                     boxShadow: isSelected ? AppColors.cardShadows : [],
                   ),
                   child: Row(
                     children: [
-                      Text(emoji, style: const TextStyle(fontSize: 40)),
+                      Text(entry['emoji']!, style: const TextStyle(fontSize: 40)),
                       const SizedBox(width: 16),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              displayName,
-                              style: Theme.of(context).textTheme.titleMedium
-                                  ?.copyWith(fontWeight: FontWeight.bold),
+                              entry['label']!,
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                             ),
                             const SizedBox(height: 4),
-                            Text(
-                              description,
-                              style: Theme.of(context).textTheme.bodySmall,
-                            ),
+                            Text(entry['desc']!, style: Theme.of(context).textTheme.bodySmall),
                           ],
                         ),
                       ),
-                      if (isSelected)
-                        const Icon(
-                          Icons.check_circle,
-                          color: AppColors.primary,
-                        ),
+                      if (isSelected) const Icon(Icons.check_circle, color: AppColors.primary),
                     ],
                   ),
                 ),
@@ -177,10 +206,8 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
             width: double.infinity,
             child: AppButton(
               label: 'Continuer',
-              isEnabled: selectedOperator != null,
-              onPressed: () {
-                setState(() => _step = 1);
-              },
+              isEnabled: selectedNetwork != null,
+              onPressed: () => setState(() => _step = 1),
             ),
           ),
         ],
@@ -188,46 +215,19 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
     );
   }
 
-  Widget _buildPhoneInput(
-    List<Map<String, dynamic>> operatorOptions,
-    double amount,
-  ) {
-    final available = operatorOptions.isEmpty
-        ? fallbackOperators.entries
-              .map(
-                (entry) => {
-                  'key': entry.key,
-                  'display': entry.key,
-                  'emoji': entry.value['image'],
-                  'prefix': entry.value['prefix'],
-                },
-              )
-              .toList()
-        : operatorOptions;
-
-    final currentOperator = available.firstWhere(
-      (entry) => entry['key'].toString() == selectedOperator,
-      orElse: () =>
-          available.isNotEmpty ? available.first : <String, dynamic>{},
-    );
-    final prefix = (currentOperator['prefix'] ?? '+229').toString();
-    final emoji = (currentOperator['emoji'] ?? '💳').toString();
+  Widget _buildPhoneInput() {
+    final current = _networks.firstWhere((entry) => entry['key'] == selectedNetwork);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Numéro de téléphone',
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
+          Text('Numéro de téléphone', style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: 8),
           Text(
-            'Entrez votre numéro ${selectedOperator ?? 'opérateur'}',
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: AppColors.onSurfaceVariant),
+            'Entrez votre numéro ${current['label']}',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.onSurfaceVariant),
           ),
           const SizedBox(height: 32),
           Container(
@@ -238,22 +238,16 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
             ),
             child: Row(
               children: [
-                Text(emoji, style: const TextStyle(fontSize: 32)),
+                Text(current['emoji']!, style: const TextStyle(fontSize: 32)),
                 const SizedBox(width: 12),
                 Expanded(
                   child: TextField(
                     keyboardType: TextInputType.phone,
-                    maxLength: 8,
-                    decoration: InputDecoration(
-                      prefix: Text('$prefix '),
+                    decoration: const InputDecoration(
                       border: InputBorder.none,
-                      hintText: '97 XX XX XX',
-                      hintStyle: TextStyle(color: AppColors.onSurfaceVariant),
-                      counterText: '',
+                      hintText: '+228 90 12 34 56',
                     ),
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
                     onChanged: (value) => setState(() => phoneNumber = value),
                   ),
                 ),
@@ -274,7 +268,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Vous recevrez un code USSD à confirmer',
+                    'Vous recevrez une demande de confirmation sur votre téléphone (USSD)',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ),
@@ -285,11 +279,9 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
           SizedBox(
             width: double.infinity,
             child: AppButton(
-              label: 'Confirmer',
-              isEnabled: phoneNumber.length == 8,
-              onPressed: () {
-                _processPayment();
-              },
+              label: 'Payer $_amountLabel',
+              isEnabled: phoneNumber.trim().length >= 8,
+              onPressed: _processPayment,
             ),
           ),
         ],
@@ -297,7 +289,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
     );
   }
 
-  Widget _buildProcessing(double amount) {
+  Widget _buildProcessing() {
     return Center(
       child: SingleChildScrollView(
         child: Column(
@@ -305,16 +297,12 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
           children: [
             const AppLoadingIndicator(),
             const SizedBox(height: 24),
-            Text(
-              'Traitement du paiement',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
+            Text('Traitement du paiement', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
             Text(
-              'Veuillez patienter...',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.onSurfaceVariant,
-              ),
+              _processingMessage,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.onSurfaceVariant),
             ),
             const SizedBox(height: 32),
             Container(
@@ -326,21 +314,13 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Commande: ${widget.orderId}',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
+                  Text('Référence: ${widget.reference}', style: Theme.of(context).textTheme.bodySmall),
+                  const SizedBox(height: 4),
+                  Text('Opérateur: ${selectedNetwork ?? ""}', style: Theme.of(context).textTheme.bodySmall),
                   const SizedBox(height: 4),
                   Text(
-                    'Opérateur: ${selectedOperator ?? ""}',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Montant: ${amount.toStringAsFixed(0)} XOF',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.titleSmall?.copyWith(color: AppColors.primary),
+                    'Montant: $_amountLabel',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(color: AppColors.primary),
                   ),
                 ],
               ),
@@ -351,7 +331,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
     );
   }
 
-  Widget _buildSuccess(double amount) {
+  Widget _buildSuccess() {
     return Center(
       child: SingleChildScrollView(
         child: Column(
@@ -362,15 +342,12 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
             Text(
               'Paiement réussi!',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                color: AppColors.success,
-                fontWeight: FontWeight.bold,
-              ),
+                    color: AppColors.success,
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
             const SizedBox(height: 8),
-            Text(
-              'Votre commande a été confirmée',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
+            Text('Votre paiement a été confirmé', style: Theme.of(context).textTheme.bodyMedium),
             const SizedBox(height: 32),
             Container(
               padding: const EdgeInsets.all(16),
@@ -384,11 +361,8 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Commande:'),
-                      Text(
-                        widget.orderId,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
+                      const Text('Référence:'),
+                      Text(widget.reference, style: const TextStyle(fontWeight: FontWeight.bold)),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -397,11 +371,8 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                     children: [
                       const Text('Montant:'),
                       Text(
-                        '${amount.toStringAsFixed(0)} XOF',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
-                        ),
+                        _amountLabel,
+                        style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
                       ),
                     ],
                   ),
@@ -410,11 +381,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text('Statut:'),
-                      AppBadge(
-                        label: 'Payée',
-                        backgroundColor: AppColors.secondary,
-                        textColor: Colors.white,
-                      ),
+                      AppBadge(label: 'Payé', backgroundColor: AppColors.secondary, textColor: Colors.white),
                     ],
                   ),
                 ],
@@ -423,18 +390,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
             const SizedBox(height: 32),
             SizedBox(
               width: double.infinity,
-              child: AppButton(
-                label: 'Voir ma commande',
-                onPressed: () => context.go('/orders'),
-              ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: SecondaryButton(
-                label: 'Retourner à l\'accueil',
-                onPressed: () => context.go('/home'),
-              ),
+              child: AppButton(label: 'Continuer', onPressed: widget.onSuccess),
             ),
           ],
         ),
@@ -443,131 +399,81 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
   }
 
   Future<void> _processPayment() async {
-    if (selectedOperator == null || phoneNumber.length != 8) {
+    if (selectedNetwork == null || phoneNumber.trim().length < 8) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Veuillez sélectionner un opérateur et saisir un numéro valide.',
-          ),
-        ),
+        const SnackBar(content: Text('Veuillez sélectionner un opérateur et saisir un numéro valide.')),
       );
       return;
     }
 
-    final orderData = ref.read(orderDetailProvider(widget.orderId)).value;
-    final amount = _extractAmount(orderData);
-
-    setState(() => _step = 2);
+    setState(() {
+      _step = 2;
+      _processingMessage = 'Initialisation du paiement...';
+      _pollingTimedOut = false;
+    });
 
     try {
-      final response = await ref
-          .read(paymentProvider.notifier)
-          .initializePayment({
-            'orderId': widget.orderId,
-            'paymentMethod': selectedOperator,
-            'phoneNumber': phoneNumber,
-            'amount': amount,
-            'currency': 'XOF',
-          });
-
-      final status = _extractPaymentStatus(response);
-      if (status == 'success' || status == 'paid') {
-        if (mounted) {
-          setState(() => _step = 3);
-        }
-      } else {
-        if (mounted) {
-          setState(() => _step = 1);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Paiement non confirmé: ${response.toString()}'),
-            ),
-          );
-        }
+      final result = await widget.initiate(phoneNumber.trim(), selectedNetwork!);
+      final paymentId = result['paymentId']?.toString();
+      if (paymentId == null) {
+        throw Exception('Réponse de paiement invalide (paymentId manquant)');
       }
-    } catch (error) {
-      if (mounted) {
+
+      if (!mounted) return;
+      setState(() => _processingMessage = 'En attente de confirmation sur votre téléphone...');
+
+      final finalStatus = await _pollPaymentStatus(paymentId);
+
+      if (!mounted) return;
+      if (finalStatus == 'COMPLETED') {
+        setState(() => _step = 3);
+      } else if (_pollingTimedOut) {
         setState(() => _step = 1);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur de paiement: ${error.toString()}')),
+          const SnackBar(
+            content: Text(
+              'Confirmation non reçue à temps. Si vous avez validé sur votre téléphone, '
+              'vérifiez vos commandes dans quelques instants.',
+            ),
+          ),
+        );
+      } else {
+        setState(() => _step = 1);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Paiement non confirmé (statut: $finalStatus)')),
         );
       }
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _step = 1);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur de paiement: ${error.toString()}')),
+      );
     }
   }
 
-  List<Map<String, dynamic>> _normalizeOperators(List<dynamic> methods) {
-    if (methods.isEmpty) {
-      return [];
-    }
+  /// Interroge GET /payments/{paymentId}/status toutes les 3s jusqu'à un
+  /// statut terminal (COMPLETED/FAILED/REFUNDED) ou 90s d'attente.
+  Future<String> _pollPaymentStatus(String paymentId) async {
+    final getStatus = ref.read(getPaymentStatusActionProvider);
+    const maxAttempts = 30;
+    const interval = Duration(seconds: 3);
 
-    return methods.map((method) {
-      if (method is Map) {
-        final code =
-            (method['code'] ??
-                    method['provider'] ??
-                    method['name'] ??
-                    'PAYMENT')
-                .toString();
-        final label =
-            (method['label'] ?? method['name'] ?? method['provider'] ?? code)
-                .toString();
-        final description = (method['description'] ?? 'Paiement mobile')
-            .toString();
-        final prefix = (method['prefix'] ?? '+229').toString();
+    for (var attempt = 0; attempt < maxAttempts; attempt++) {
+      await Future.delayed(interval);
+      if (!mounted) return 'CANCELLED';
 
-        return {
-          'key': code,
-          'display': label,
-          'description': description,
-          'prefix': prefix,
-          'emoji': _emojiForOperator(code),
-        };
-      }
-
-      return {
-        'key': method.toString(),
-        'display': method.toString(),
-        'description': 'Paiement mobile',
-        'prefix': '+229',
-        'emoji': '💳',
-      };
-    }).toList();
-  }
-
-  String _emojiForOperator(String key) {
-    switch (key.toUpperCase()) {
-      case 'FLOOZ':
-        return '🟠';
-      case 'TMONEY':
-        return '🟡';
-      default:
-        return '💳';
-    }
-  }
-
-  double _extractAmount(dynamic order) {
-    if (order == null) {
-      return 0;
-    }
-    if (order is Map) {
-      final amount = order['totalAmount'] ?? order['amount'] ?? order['price'];
-      if (amount is num) return amount.toDouble();
-      if (amount is String) return double.tryParse(amount) ?? 0;
-    }
-    return 0;
-  }
-
-  String _extractPaymentStatus(dynamic response) {
-    if (response == null) {
-      return 'pending';
-    }
-    if (response is Map) {
-      final status =
-          response['status'] ?? response['paymentStatus'] ?? response['state'];
-      if (status != null) {
-        return status.toString().toLowerCase();
+      try {
+        final status = (await getStatus(paymentId))['status']?.toString() ?? 'PENDING';
+        if (status != 'PENDING') {
+          return status;
+        }
+      } catch (_) {
+        // Erreur réseau transitoire pendant le polling : on retente.
       }
     }
-    return 'pending';
+
+    _pollingTimedOut = true;
+    return 'PENDING';
   }
 }

@@ -318,6 +318,45 @@ class MockArtisanRemoteDataSource extends _i1.Mock
       ) as _i4.Future<Map<String, dynamic>>);
 
   @override
+  _i4.Future<Map<String, dynamic>> markOrderDelivered(String? orderId) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #markOrderDelivered,
+          [orderId],
+        ),
+        returnValue:
+            _i4.Future<Map<String, dynamic>>.value(<String, dynamic>{}),
+      ) as _i4.Future<Map<String, dynamic>>);
+
+  @override
+  _i4.Future<_i2.ArtisanModel> updateArtisanLocation(
+    String? artisanId,
+    double? latitude,
+    double? longitude,
+  ) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #updateArtisanLocation,
+          [
+            artisanId,
+            latitude,
+            longitude,
+          ],
+        ),
+        returnValue: _i4.Future<_i2.ArtisanModel>.value(_FakeArtisanModel_0(
+          this,
+          Invocation.method(
+            #updateArtisanLocation,
+            [
+              artisanId,
+              latitude,
+              longitude,
+            ],
+          ),
+        )),
+      ) as _i4.Future<_i2.ArtisanModel>);
+
+  @override
   _i4.Future<_i2.ArtisanModel> createArtisan(Map<String, dynamic>? data) =>
       (super.noSuchMethod(
         Invocation.method(
@@ -449,6 +488,18 @@ class MockArtisanRemoteDataSource extends _i1.Mock
         Invocation.method(
           #toggleProductActive,
           [productId],
+        ),
+        returnValue:
+            _i4.Future<Map<String, dynamic>>.value(<String, dynamic>{}),
+      ) as _i4.Future<Map<String, dynamic>>);
+
+  @override
+  _i4.Future<Map<String, dynamic>> createAdvertisement(
+          Map<String, dynamic>? data) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #createAdvertisement,
+          [data],
         ),
         returnValue:
             _i4.Future<Map<String, dynamic>>.value(<String, dynamic>{}),

@@ -21,3 +21,6 @@ export 'course_detail_screen.dart';
 export 'artisan_dashboard_screen.dart';
 export 'cart_screen.dart';
 export 'gift_screen.dart';
+export 'microfinance_screen.dart';
+export 'change_password_screen.dart';
+export 'edit_profile_screen.dart';

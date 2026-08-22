@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../bloc/api_providers.dart';
 import '../widgets/widgets.dart';
+import 'payment_screen.dart';
 
 /// Écran de don, branché sur POST /donations, GET /donations/me et
 /// GET /donations/stats. L'API ne connaît que 3 types de bénéficiaires
@@ -63,7 +64,7 @@ class _DonationScreenState extends ConsumerState<DonationScreen> {
     setState(() => _submitting = true);
     try {
       final create = ref.read(createDonationActionProvider);
-      await create({
+      final donation = await create({
         'recipientType': _recipientType,
         if (widget.recipientId != null) 'recipientId': widget.recipientId,
         'amount': amount,
@@ -71,14 +72,33 @@ class _DonationScreenState extends ConsumerState<DonationScreen> {
         if (_messageController.text.trim().isNotEmpty) 'message': _messageController.text.trim(),
         'anonymous': _anonymous,
       });
+      final donationId = donation['id']?.toString();
+      if (donationId == null) {
+        throw Exception('Identifiant du don introuvable');
+      }
+
       ref.invalidate(myDonationsProvider);
-      if (!mounted) return;
-      showSuccessSnackbar(context, 'Merci pour votre don de $amountText XOF !');
       setState(() {
         _selectedAmount = '';
         _customAmountController.clear();
         _messageController.clear();
       });
+
+      if (!mounted) return;
+      context.push(
+        '/pay',
+        extra: PaymentScreen(
+          title: 'Paiement du don',
+          reference: donationId,
+          amount: amount,
+          initiate: (phone, network) => ref.read(initiateDonationPaymentActionProvider)(
+            donationId,
+            phone,
+            network,
+          ),
+          onSuccess: () => context.go('/profile'),
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       showErrorSnackbar(context, 'Erreur: $e');

@@ -33,6 +33,10 @@ abstract class ArtisanRemoteDataSource {
   Future<List<dynamic>> getArtisanOrders({String? status});
   // PUT /orders/{id}/status
   Future<Map<String, dynamic>> updateOrderStatus(String orderId, String status);
+  // POST /orders/{id}/mark-delivered
+  Future<Map<String, dynamic>> markOrderDelivered(String orderId);
+  // PUT /artisans/{id}/location
+  Future<ArtisanModel> updateArtisanLocation(String artisanId, double latitude, double longitude);
 
   // POST /artisans
   Future<ArtisanModel> createArtisan(Map<String, dynamic> data);
@@ -50,6 +54,8 @@ abstract class ArtisanRemoteDataSource {
   Future<void> deleteProduct(String productId);
   // PATCH /products/{id}/toggle-active
   Future<Map<String, dynamic>> toggleProductActive(String productId);
+  // POST /advertisements (Admin/Artisan) — auto-promotion d'un produit
+  Future<Map<String, dynamic>> createAdvertisement(Map<String, dynamic> data);
 }
 
 class ArtisanRemoteDataSourceImpl implements ArtisanRemoteDataSource {
@@ -432,6 +438,43 @@ class ArtisanRemoteDataSourceImpl implements ArtisanRemoteDataSource {
   }
 
   @override
+  Future<ArtisanModel> updateArtisanLocation(
+      String artisanId, double latitude, double longitude) async {
+    try {
+      final response = await dio.put(
+        '${AppConstants.apiBaseUrl}${AppConstants.artisansEndpoint}/$artisanId/location',
+        data: {'latitude': latitude, 'longitude': longitude},
+      );
+
+      if (response.statusCode == 200) {
+        final json = _extractJson(response.data) as Map<String, dynamic>?
+            ?? (response.data as Map<String, dynamic>);
+        return ArtisanModel.fromJson(json);
+      }
+      throw Exception('Erreur lors de la mise à jour de la position');
+    } on DioException catch (e) {
+      throw _handleDioException(e);
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> markOrderDelivered(String orderId) async {
+    try {
+      final response = await dio.post(
+        '${AppConstants.apiBaseUrl}${AppConstants.ordersEndpoint}/$orderId/mark-delivered',
+      );
+
+      if (response.statusCode == 200) {
+        return _extractJson(response.data) as Map<String, dynamic>?
+            ?? (response.data as Map<String, dynamic>);
+      }
+      throw Exception('Erreur lors du passage en livrée');
+    } on DioException catch (e) {
+      throw _handleDioException(e);
+    }
+  }
+
+  @override
   Future<ArtisanModel> createArtisan(Map<String, dynamic> data) async {
     try {
       final response = await dio.post(
@@ -569,6 +612,24 @@ class ArtisanRemoteDataSourceImpl implements ArtisanRemoteDataSource {
             ?? (response.data as Map<String, dynamic>);
       }
       throw Exception('Erreur lors du changement de statut du produit');
+    } on DioException catch (e) {
+      throw _handleDioException(e);
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> createAdvertisement(Map<String, dynamic> data) async {
+    try {
+      final response = await dio.post(
+        '${AppConstants.apiBaseUrl}/advertisements',
+        data: data,
+      );
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        return _extractJson(response.data) as Map<String, dynamic>?
+            ?? (response.data as Map<String, dynamic>);
+      }
+      throw Exception('Erreur lors de la création de l\'annonce');
     } on DioException catch (e) {
       throw _handleDioException(e);
     }

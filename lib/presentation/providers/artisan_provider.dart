@@ -149,10 +149,31 @@ final artisanOrdersProvider = FutureProvider.family<List<dynamic>, String?>((ref
   return dataSource.getArtisanOrders(status: status);
 });
 
+// Provider for creating a self-service advertisement (callable) — POST /advertisements
+final createAdvertisementActionProvider =
+    Provider<Future<Map<String, dynamic>> Function(Map<String, dynamic>)>((ref) {
+  final dataSource = ref.watch(artisanRemoteDataSourceProvider);
+  return (Map<String, dynamic> data) => dataSource.createAdvertisement(data);
+});
+
+// Provider for updating an artisan's GPS position (callable) — PUT /artisans/{id}/location
+final updateArtisanLocationActionProvider =
+    Provider<Future<ArtisanModel> Function(String, double, double)>((ref) {
+  final dataSource = ref.watch(artisanRemoteDataSourceProvider);
+  return (String artisanId, double lat, double lng) =>
+      dataSource.updateArtisanLocation(artisanId, lat, lng);
+});
+
 // Provider for confirming/updating an order's status (callable) — PUT /orders/{id}/status
 final updateOrderStatusActionProvider = Provider<Future<Map<String, dynamic>> Function(String, String)>((ref) {
   final dataSource = ref.watch(artisanRemoteDataSourceProvider);
   return (String orderId, String status) => dataSource.updateOrderStatus(orderId, status);
+});
+
+// Provider for the artisan marking an order as delivered (callable) — POST /orders/{id}/mark-delivered
+final markOrderDeliveredActionProvider = Provider<Future<Map<String, dynamic>> Function(String)>((ref) {
+  final dataSource = ref.watch(artisanRemoteDataSourceProvider);
+  return (String orderId) => dataSource.markOrderDelivered(orderId);
 });
 
 // L'API n'expose pas de /artisans/me : on retrouve le profil artisan de
@@ -176,10 +197,11 @@ final createArtisanActionProvider = Provider<Future<ArtisanModel> Function(Map<S
   return (Map<String, dynamic> data) => dataSource.createArtisan(data);
 });
 
-// Provider for updating the current user's nom/prénom/avatar — PUT /users/{id}
-final updateUserActionProvider = Provider<Future<void> Function(String, Map<String, dynamic>)>((ref) {
+// Provider for updating the current user's nom/prénom/avatar — PUT /users/me
+// (PUT /users/{id} est réservé aux admins d'après la doc API).
+final updateUserActionProvider = Provider<Future<void> Function(Map<String, dynamic>)>((ref) {
   final dataSource = ref.watch(authRemoteDataSourceProvider);
-  return (String userId, Map<String, dynamic> data) => dataSource.updateUser(userId, data);
+  return (Map<String, dynamic> data) => dataSource.updateMe(data);
 });
 
 // Provider for listing an artisan's réalisations

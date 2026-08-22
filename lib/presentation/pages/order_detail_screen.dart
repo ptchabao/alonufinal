@@ -1,19 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../bloc/api_providers.dart';
 import '../widgets/widgets.dart';
 
-class OrderDetailScreen extends ConsumerWidget {
+class OrderDetailScreen extends ConsumerStatefulWidget {
   final String orderId;
 
   const OrderDetailScreen({super.key, required this.orderId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final orderAsync = ref.watch(orderDetailProvider(orderId));
+  ConsumerState<OrderDetailScreen> createState() => _OrderDetailScreenState();
+}
+
+class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
+  bool _isSubmitting = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final orderAsync = ref.watch(orderDetailProvider(widget.orderId));
 
     return orderAsync.when(
       data: (order) {
@@ -47,10 +55,11 @@ class OrderDetailScreen extends ConsumerWidget {
         final updatedAt =
             DateTime.tryParse(orderData['updatedAt']?.toString() ?? '') ??
             createdAt;
-        final status = orderData['status']?.toString() ?? 'PENDING';
+        final status = orderData['status']?.toString().toUpperCase() ?? 'PENDING';
         final deliveryAddress =
             orderData['deliveryAddress']?.toString() ??
             'Adresse non renseignée';
+        final isBranchedOff = status == 'DISPUTED' || status == 'CANCELLED';
 
         final timeline = [
           {
@@ -59,17 +68,22 @@ class OrderDetailScreen extends ConsumerWidget {
             'completed': _isStatusAtLeast(status, 'PENDING'),
           },
           {
-            'label': 'En traitement',
+            'label': 'Confirmée',
             'date': _formatDate(updatedAt),
             'completed': _isStatusAtLeast(status, 'CONFIRMED'),
           },
           {
-            'label': 'Expédié',
+            'label': 'En cours',
             'date': _formatDate(updatedAt),
             'completed': _isStatusAtLeast(status, 'IN_PROGRESS'),
           },
           {
-            'label': 'Livré',
+            'label': 'Livrée',
+            'date': _formatDate(updatedAt),
+            'completed': _isStatusAtLeast(status, 'DELIVERED'),
+          },
+          {
+            'label': 'Terminée',
             'date': _formatDate(updatedAt),
             'completed': _isStatusAtLeast(status, 'COMPLETED'),
           },
@@ -132,111 +146,158 @@ class OrderDetailScreen extends ConsumerWidget {
                     ],
                   ),
                 ),
-                const Divider(height: 1),
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Suivi de la commande',
-                        style: Theme.of(context).textTheme.titleMedium,
+                if (status == 'DISPUTED')
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: AppColors.error.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.error),
                       ),
-                      const SizedBox(height: 16),
-                      ...List.generate(timeline.length, (index) {
-                        final item = timeline[index];
-                        final isCompleted = item['completed'] as bool;
-                        final isCurrent = index == currentIndex;
+                      child: Row(
+                        children: [
+                          const Icon(Icons.gavel, color: AppColors.error),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Litige en cours — un administrateur va examiner votre réclamation.',
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.error),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                if (status == 'CANCELLED')
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceVariant,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.cancel_outlined, color: AppColors.onSurfaceVariant),
+                          SizedBox(width: 12),
+                          Expanded(child: Text('Cette commande a été annulée.')),
+                        ],
+                      ),
+                    ),
+                  ),
+                const Divider(height: 1),
+                if (!isBranchedOff)
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Suivi de la commande',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 16),
+                        ...List.generate(timeline.length, (index) {
+                          final item = timeline[index];
+                          final isCompleted = item['completed'] as bool;
+                          final isCurrent = index == currentIndex;
 
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 20),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Column(
-                                children: [
-                                  Container(
-                                    width: 40,
-                                    height: 40,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: isCompleted
-                                          ? AppColors.secondary
-                                          : AppColors.surfaceVariant,
-                                      border: isCurrent
-                                          ? Border.all(
-                                              color: AppColors.primary,
-                                              width: 3,
-                                            )
-                                          : null,
-                                    ),
-                                    child: Center(
-                                      child: isCompleted
-                                          ? const Icon(
-                                              Icons.check,
-                                              color: Colors.white,
-                                              size: 20,
-                                            )
-                                          : const Icon(
-                                              Icons.schedule,
-                                              size: 20,
-                                            ),
-                                    ),
-                                  ),
-                                  if (index < timeline.length - 1)
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 20),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Column(
+                                  children: [
                                     Container(
-                                      width: 2,
-                                      height: 30,
-                                      color: isCompleted
-                                          ? AppColors.secondary
-                                          : AppColors.surfaceVariant,
-                                    ),
-                                ],
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Padding(
-                                  padding: const EdgeInsets.only(top: 4),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        item['label'] as String,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleSmall
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.bold,
-                                            ),
+                                      width: 40,
+                                      height: 40,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: isCompleted
+                                            ? AppColors.secondary
+                                            : AppColors.surfaceVariant,
+                                        border: isCurrent
+                                            ? Border.all(
+                                                color: AppColors.primary,
+                                                width: 3,
+                                              )
+                                            : null,
                                       ),
-                                      if ((item['date'] as String).isNotEmpty)
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                            top: 4,
-                                          ),
-                                          child: Text(
-                                            item['date'] as String,
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodySmall
-                                                ?.copyWith(
-                                                  color: AppColors
-                                                      .onSurfaceVariant,
-                                                ),
-                                          ),
+                                      child: Center(
+                                        child: isCompleted
+                                            ? const Icon(
+                                                Icons.check,
+                                                color: Colors.white,
+                                                size: 20,
+                                              )
+                                            : const Icon(
+                                                Icons.schedule,
+                                                size: 20,
+                                              ),
+                                      ),
+                                    ),
+                                    if (index < timeline.length - 1)
+                                      Container(
+                                        width: 2,
+                                        height: 30,
+                                        color: isCompleted
+                                            ? AppColors.secondary
+                                            : AppColors.surfaceVariant,
+                                      ),
+                                  ],
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(top: 4),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          item['label'] as String,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleSmall
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.bold,
+                                              ),
                                         ),
-                                    ],
+                                        if ((item['date'] as String).isNotEmpty)
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                              top: 4,
+                                            ),
+                                            child: Text(
+                                              item['date'] as String,
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodySmall
+                                                  ?.copyWith(
+                                                    color: AppColors
+                                                        .onSurfaceVariant,
+                                                  ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }),
-                    ],
+                              ],
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
                   ),
-                ),
                 const Divider(height: 1),
                 Padding(
                   padding: const EdgeInsets.all(16),
@@ -493,26 +554,32 @@ class OrderDetailScreen extends ConsumerWidget {
                     children: [
                       AppButton(
                         label: 'Contacter l\'artisan',
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Redirection vers messagerie'),
-                            ),
-                          );
-                        },
+                        isEnabled: !_isSubmitting,
+                        onPressed: () => _contactArtisan(artisanAsync.value),
                         icon: Icons.message,
                       ),
-                      const SizedBox(height: 12),
-                      SecondaryButton(
-                        label: 'Télécharger la facture',
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Facture téléchargée'),
-                            ),
-                          );
-                        },
-                      ),
+                      if (status == 'DELIVERED') ...[
+                        const SizedBox(height: 12),
+                        AppButton(
+                          label: 'Confirmer la réception',
+                          isEnabled: !_isSubmitting,
+                          onPressed: () => _confirmDelivery(widget.orderId),
+                          icon: Icons.check_circle_outline,
+                        ),
+                        const SizedBox(height: 12),
+                        SecondaryButton(
+                          label: 'Signaler un problème',
+                          isEnabled: !_isSubmitting,
+                          onPressed: () => _disputeOrder(context, widget.orderId),
+                        ),
+                      ] else if (status == 'PENDING' || status == 'CONFIRMED') ...[
+                        const SizedBox(height: 12),
+                        SecondaryButton(
+                          label: 'Annuler la commande',
+                          isEnabled: !_isSubmitting,
+                          onPressed: () => _cancelOrder(context, widget.orderId),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -529,6 +596,122 @@ class OrderDetailScreen extends ConsumerWidget {
         message: 'Impossible de charger la commande demandée.',
       ),
     );
+  }
+
+  Future<void> _contactArtisan(dynamic artisan) async {
+    final whatsapp = artisan is Map ? artisan['whatsapp']?.toString() : null;
+    final telephone = artisan is Map ? artisan['telephone']?.toString() : null;
+    final rawNumber = (whatsapp?.isNotEmpty ?? false) ? whatsapp : telephone;
+
+    if (rawNumber == null || rawNumber.isEmpty) {
+      if (!mounted) return;
+      showErrorSnackbar(context, 'Numéro de contact indisponible');
+      return;
+    }
+
+    final digitsOnly = rawNumber.replaceAll(RegExp(r'[^0-9]'), '');
+    final uri = Uri.parse('https://wa.me/$digitsOnly');
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      if (!mounted) return;
+      showErrorSnackbar(context, 'Impossible d\'ouvrir WhatsApp');
+    }
+  }
+
+  Future<void> _confirmDelivery(String orderId) async {
+    setState(() => _isSubmitting = true);
+    try {
+      final confirmDelivery = ref.read(confirmOrderDeliveryActionProvider);
+      await confirmDelivery(orderId);
+      ref.invalidate(orderDetailProvider(orderId));
+      if (!mounted) return;
+      showSuccessSnackbar(context, 'Réception confirmée, merci !');
+    } catch (e) {
+      if (!mounted) return;
+      showErrorSnackbar(context, 'Erreur: $e');
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  Future<void> _disputeOrder(BuildContext context, String orderId) async {
+    final reasonController = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Signaler un problème'),
+        content: TextField(
+          controller: reasonController,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            hintText: 'Décrivez le problème rencontré avec cette livraison',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(dialogContext).pop(reasonController.text.trim()),
+            child: const Text('Envoyer'),
+          ),
+        ],
+      ),
+    );
+
+    if (reason == null || reason.isEmpty) return;
+
+    setState(() => _isSubmitting = true);
+    try {
+      final dispute = ref.read(disputeOrderActionProvider);
+      await dispute(orderId, reason);
+      ref.invalidate(orderDetailProvider(orderId));
+      if (!mounted) return;
+      showSuccessSnackbar(context, 'Litige ouvert, un administrateur va intervenir');
+    } catch (e) {
+      if (!mounted) return;
+      showErrorSnackbar(context, 'Erreur: $e');
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  Future<void> _cancelOrder(BuildContext context, String orderId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Annuler la commande'),
+        content: const Text('Voulez-vous vraiment annuler cette commande ?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Non'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Oui, annuler'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() => _isSubmitting = true);
+    try {
+      final cancelOrder = ref.read(cancelOrderActionProvider);
+      await cancelOrder(orderId);
+      ref.invalidate(orderDetailProvider(orderId));
+      if (!mounted) return;
+      showSuccessSnackbar(context, 'Commande annulée');
+    } catch (e) {
+      if (!mounted) return;
+      showErrorSnackbar(context, 'Erreur: $e');
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
   }
 
   Scaffold _buildFallbackScreen(
@@ -577,12 +760,16 @@ class OrderDetailScreen extends ConsumerWidget {
       'PENDING': 0,
       'CONFIRMED': 1,
       'IN_PROGRESS': 2,
-      'COMPLETED': 3,
-      'CANCELLED': 4,
+      'DELIVERED': 3,
+      'COMPLETED': 4,
     };
 
-    final currentRank = statusRank[currentStatus.toUpperCase()] ?? 0;
+    // DISPUTED/CANCELLED sont des branches, pas des étapes de la timeline
+    // linéaire : on les traite comme "tout est en attente" ici — l'appelant
+    // affiche un bandeau dédié dans ce cas plutôt que la timeline.
+    final currentRank = statusRank[currentStatus.toUpperCase()];
     final targetRank = statusRank[targetStatus.toUpperCase()] ?? 0;
+    if (currentRank == null) return false;
 
     return currentRank >= targetRank;
   }
@@ -595,8 +782,12 @@ class OrderDetailScreen extends ConsumerWidget {
         return 'Confirmée';
       case 'IN_PROGRESS':
         return 'En cours';
-      case 'COMPLETED':
+      case 'DELIVERED':
         return 'Livrée';
+      case 'COMPLETED':
+        return 'Terminée';
+      case 'DISPUTED':
+        return 'Litige';
       case 'CANCELLED':
         return 'Annulée';
       default:

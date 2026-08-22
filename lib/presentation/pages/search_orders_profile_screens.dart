@@ -684,11 +684,23 @@ class ProfileScreen extends ConsumerWidget {
                             shape: BoxShape.circle,
                             gradient: AppColors.badgeGradient,
                           ),
-                          child: const Icon(
-                            Icons.person,
-                            size: 40,
-                            color: Colors.white,
-                          ),
+                          child: (authState.user?.avatar?.isNotEmpty ?? false)
+                              ? ClipOval(
+                                  child: Image.network(
+                                    authState.user!.avatar!,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => const Icon(
+                                      Icons.person,
+                                      size: 40,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.person,
+                                  size: 40,
+                                  color: Colors.white,
+                                ),
                         ),
                         const SizedBox(height: 16),
                         Text(
@@ -778,6 +790,11 @@ class ProfileScreen extends ConsumerWidget {
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
                   const SizedBox(height: 12),
+                  _ProfileMenuItem(
+                    icon: Icons.edit_outlined,
+                    title: 'Modifier mon profil',
+                    onTap: () => context.push('/edit-profile'),
+                  ),
                   if (authState.user?.role.name != 'ARTISAN')
                     _ProfileMenuItem(
                       icon: Icons.shopping_bag_outlined,
@@ -813,6 +830,16 @@ class ProfileScreen extends ConsumerWidget {
                     icon: Icons.share_outlined,
                     title: 'Programme de parrainage',
                     onTap: () => context.push('/referral'),
+                  ),
+                  _ProfileMenuItem(
+                    icon: Icons.account_balance_outlined,
+                    title: 'Microfinance',
+                    onTap: () => context.push('/microfinance'),
+                  ),
+                  _ProfileMenuItem(
+                    icon: Icons.lock_outline,
+                    title: 'Changer le mot de passe',
+                    onTap: () => context.push('/change-password'),
                   ),
                   _ProfileMenuItem(
                     icon: Icons.tune_outlined,

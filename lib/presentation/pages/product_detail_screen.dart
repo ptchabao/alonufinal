@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
@@ -82,6 +83,20 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               ),
             ),
             actions: [
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Material(
+                  shape: const CircleBorder(),
+                  color: AppColors.surface,
+                  child: InkWell(
+                    onTap: () => _shareProduct(context, productData),
+                    child: const Icon(
+                      Icons.share_outlined,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+              ),
               Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: Material(
@@ -441,6 +456,12 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         message: 'Impossible de charger le produit demandé.',
       ),
     );
+  }
+
+  void _shareProduct(BuildContext context, Map<String, dynamic> productData) {
+    final title = (productData['title'] ?? 'Produit').toString();
+    final link = '${AppConstants.apiBaseUrl}/share/product/${widget.productId}';
+    Share.share('$title sur ALONU\n$link');
   }
 
   void _addToCart(

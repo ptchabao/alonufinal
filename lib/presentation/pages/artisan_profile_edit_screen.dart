@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../widgets/widgets.dart';
 import '../providers/artisan_provider.dart';
 import '../bloc/auth_provider.dart';
+import '../bloc/api_providers.dart' show initiateSubscriptionPaymentActionProvider;
+import 'payment_screen.dart';
 
 class ArtisanProfileEditScreen extends ConsumerStatefulWidget {
   final String? artisanId;
@@ -52,10 +55,10 @@ class _ArtisanProfileEditScreenState extends ConsumerState<ArtisanProfileEditScr
         'instagram': _instagramController.text.trim().isEmpty ? null : _instagramController.text.trim(),
       });
 
-      // Nom/prénom vivent sur l'utilisateur (PUT /users/{id})
+      // Nom/prénom vivent sur l'utilisateur (PUT /users/me)
       if (userId != null) {
         final updateUser = ref.read(updateUserActionProvider);
-        await updateUser(userId, {
+        await updateUser({
           'nom': _nameController.text.trim(),
           'prenom': _prenomController.text.trim(),
         });
@@ -178,6 +181,68 @@ class _ArtisanProfileEditScreenState extends ConsumerState<ArtisanProfileEditScr
     }
   }
 
+  /// Auto-promotion d'un produit — POST /advertisements (type PROMOTION),
+  /// ouvert aux artisans d'après la doc API (pas réservé à l'Admin).
+  Future<void> _showPromoteProductDialog(Map<String, dynamic> product) async {
+    final imageUrl = _extractProductImageUrl(product);
+    if (imageUrl == null) {
+      showErrorSnackbar(context, 'Ce produit doit avoir au moins une photo pour être promu');
+      return;
+    }
+
+    final subtitleController = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Promouvoir ce produit'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Créer une publicité pour "${product['title']}" sur le carrousel de l\'accueil.'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: subtitleController,
+              decoration: const InputDecoration(labelText: 'Accroche (sous-titre)'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Annuler')),
+          ElevatedButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Promouvoir')),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final productId = product['id']?.toString() ?? '';
+    try {
+      await ref.read(createAdvertisementActionProvider)({
+        'type': 'PROMOTION',
+        'title': (product['title'] ?? 'Produit').toString(),
+        if (subtitleController.text.trim().isNotEmpty) 'subtitle': subtitleController.text.trim(),
+        'imageUrl': imageUrl,
+        'linkUrl': '${AppConstants.apiBaseUrl}/share/product/$productId',
+      });
+      if (!mounted) return;
+      showSuccessSnackbar(context, 'Produit promu avec succès');
+    } catch (e) {
+      if (!mounted) return;
+      showErrorSnackbar(context, 'Erreur: $e');
+    }
+  }
+
+  String? _extractProductImageUrl(Map<String, dynamic> product) {
+    final images = product['images'];
+    if (images is List) {
+      for (final image in images) {
+        if (image is Map && image['url'] != null) return image['url'].toString();
+        if (image is String && image.isNotEmpty) return image;
+      }
+    }
+    return null;
+  }
+
   Future<void> _toggleProductActive(String artisanId, String productId) async {
     try {
       await ref.read(toggleProductActiveActionProvider)(productId);
@@ -280,6 +345,7 @@ class _ArtisanProfileEditScreenState extends ConsumerState<ArtisanProfileEditScr
         onShowEditProductDialog: _showEditProductDialog,
         onDeleteProduct: _deleteProduct,
         onToggleProductActive: _toggleProductActive,
+        onPromoteProduct: _showPromoteProductDialog,
         onShowAddRealisationDialog: _showAddRealisationDialog,
         onDeleteRealisation: _deleteRealisation,
       );
@@ -315,6 +381,7 @@ class _ArtisanProfileEditScreenState extends ConsumerState<ArtisanProfileEditScr
           onShowEditProductDialog: _showEditProductDialog,
           onDeleteProduct: _deleteProduct,
           onToggleProductActive: _toggleProductActive,
+          onPromoteProduct: _showPromoteProductDialog,
           onShowAddRealisationDialog: _showAddRealisationDialog,
           onDeleteRealisation: _deleteRealisation,
         );
@@ -354,6 +421,7 @@ class _EditArtisanScaffold extends ConsumerWidget {
   final Future<void> Function(String artisanId, Map<String, dynamic> product) onShowEditProductDialog;
   final Future<void> Function(String artisanId, String productId) onDeleteProduct;
   final Future<void> Function(String artisanId, String productId) onToggleProductActive;
+  final Future<void> Function(Map<String, dynamic> product) onPromoteProduct;
   final Future<void> Function(String artisanId) onShowAddRealisationDialog;
   final Future<void> Function(String artisanId, String realisationId) onDeleteRealisation;
 
@@ -368,6 +436,7 @@ class _EditArtisanScaffold extends ConsumerWidget {
     required this.onShowEditProductDialog,
     required this.onDeleteProduct,
     required this.onToggleProductActive,
+    required this.onPromoteProduct,
     required this.onShowAddRealisationDialog,
     required this.onDeleteRealisation,
   });
@@ -443,6 +512,13 @@ class _EditArtisanScaffold extends ConsumerWidget {
                         ),
                       ),
                       const SizedBox(height: 24),
+                      if (!artisan.subscriptionPaid) ...[
+                        _SubscriptionBanner(
+                          targetType: 'ARTISAN',
+                          targetId: artisanId,
+                        ),
+                        const SizedBox(height: 24),
+                      ],
                       Text('Informations personnelles', style: Theme.of(context).textTheme.titleMedium),
                       const SizedBox(height: 12),
                       TextField(controller: controllers.nom, decoration: InputDecoration(labelText: 'Nom', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)), filled: true, fillColor: AppColors.surfaceVariant)),
@@ -452,6 +528,8 @@ class _EditArtisanScaffold extends ConsumerWidget {
                       TextField(controller: controllers.telephone, decoration: InputDecoration(labelText: 'Téléphone', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)), filled: true, fillColor: AppColors.surfaceVariant)),
                       const SizedBox(height: 12),
                       TextField(controller: controllers.adresse, decoration: InputDecoration(labelText: 'Adresse', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)), filled: true, fillColor: AppColors.surfaceVariant)),
+                      const SizedBox(height: 12),
+                      _UpdateLocationButton(artisanId: artisanId),
                       const SizedBox(height: 12),
                       TextField(controller: controllers.facebook, decoration: InputDecoration(labelText: 'Facebook', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)), filled: true, fillColor: AppColors.surfaceVariant)),
                       const SizedBox(height: 12),
@@ -581,6 +659,11 @@ class _EditArtisanScaffold extends ConsumerWidget {
                                           onChanged: (_) => onToggleProductActive(artisanId, productId),
                                         ),
                                         IconButton(
+                                          icon: const Icon(Icons.campaign_outlined, color: AppColors.secondary),
+                                          tooltip: 'Promouvoir',
+                                          onPressed: () => onPromoteProduct(item ?? {}),
+                                        ),
+                                        IconButton(
                                           icon: const Icon(Icons.edit_outlined, color: AppColors.primary),
                                           onPressed: () => onShowEditProductDialog(artisanId, item ?? {}),
                                         ),
@@ -612,6 +695,111 @@ class _EditArtisanScaffold extends ConsumerWidget {
   }
 }
 
+/// Bouton "Mettre à jour ma position" — capture le GPS courant et l'envoie
+/// via PUT /artisans/{id}/location.
+class _UpdateLocationButton extends ConsumerStatefulWidget {
+  final String artisanId;
+
+  const _UpdateLocationButton({required this.artisanId});
+
+  @override
+  ConsumerState<_UpdateLocationButton> createState() => _UpdateLocationButtonState();
+}
+
+class _UpdateLocationButtonState extends ConsumerState<_UpdateLocationButton> {
+  bool _isUpdating = false;
+
+  Future<void> _updateLocation() async {
+    setState(() => _isUpdating = true);
+    try {
+      final position = await ref.read(locationServiceProvider).getCurrentPosition();
+      final updateLocation = ref.read(updateArtisanLocationActionProvider);
+      await updateLocation(widget.artisanId, position.latitude, position.longitude);
+      ref.invalidate(artisanDetailProvider(widget.artisanId));
+      if (!mounted) return;
+      showSuccessSnackbar(context, 'Position mise à jour');
+    } catch (e) {
+      if (!mounted) return;
+      showErrorSnackbar(context, 'Erreur: $e');
+    } finally {
+      if (mounted) setState(() => _isUpdating = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SecondaryButton(
+      label: _isUpdating ? 'Localisation...' : 'Mettre à jour ma position GPS',
+      isEnabled: !_isUpdating,
+      onPressed: _updateLocation,
+    );
+  }
+}
+
+/// Bandeau incitant au paiement de l'abonnement (subscriptionPaid == false),
+/// condition posée par l'API pour la validation admin d'un artisan/étudiant.
+/// POST /payments/subscription/initiate via l'écran de paiement générique.
+class _SubscriptionBanner extends ConsumerWidget {
+  final String targetType; // 'ARTISAN' | 'STUDENT'
+  final String targetId;
+
+  const _SubscriptionBanner({required this.targetType, required this.targetId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.error.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.error.withOpacity(0.4)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.workspace_premium_outlined, color: AppColors.error),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Abonnement non payé',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                const Text('Requis pour la validation de votre profil par un administrateur.'),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          AppTextButton(
+            label: 'Payer',
+            color: AppColors.error,
+            onPressed: () {
+              final initiateSubscription = ref.read(initiateSubscriptionPaymentActionProvider);
+              context.push(
+                '/pay',
+                extra: PaymentScreen(
+                  title: 'Paiement abonnement',
+                  reference: targetId,
+                  amount: null,
+                  initiate: (phone, network) => initiateSubscription(
+                    targetType: targetType,
+                    targetId: targetId,
+                    phoneNumber: phone,
+                    network: network,
+                  ),
+                  onSuccess: () => context.pop(),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Onglet "Commandes" du profil artisan : deux sous-onglets suivant le cycle
 /// de vie côté artisan — Reçues (statut PENDING, à traiter) et Confirmées
 /// (statut CONFIRMED). GET /orders/artisan (JWT artisan) + PUT /orders/{id}/status.
@@ -621,7 +809,7 @@ class _ArtisanOrdersPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Column(
         children: [
           Container(
@@ -631,6 +819,7 @@ class _ArtisanOrdersPanel extends StatelessWidget {
               borderRadius: BorderRadius.circular(24),
             ),
             child: TabBar(
+              isScrollable: true,
               indicator: BoxDecoration(
                 color: AppColors.primary,
                 borderRadius: BorderRadius.circular(24),
@@ -641,14 +830,31 @@ class _ArtisanOrdersPanel extends StatelessWidget {
               tabs: const [
                 Tab(text: 'Reçues'),
                 Tab(text: 'Confirmées'),
+                Tab(text: 'En cours'),
               ],
             ),
           ),
           const Expanded(
             child: TabBarView(
               children: [
-                _ArtisanOrdersList(status: 'PENDING', canConfirm: true),
-                _ArtisanOrdersList(status: 'CONFIRMED', canConfirm: false),
+                _ArtisanOrdersList(
+                  status: 'PENDING',
+                  emptyLabel: 'Aucune commande reçue',
+                  actionLabel: 'Confirmer',
+                  nextStatus: 'CONFIRMED',
+                ),
+                _ArtisanOrdersList(
+                  status: 'CONFIRMED',
+                  emptyLabel: 'Aucune commande confirmée',
+                  actionLabel: 'Démarrer',
+                  nextStatus: 'IN_PROGRESS',
+                ),
+                _ArtisanOrdersList(
+                  status: 'IN_PROGRESS',
+                  emptyLabel: 'Aucune commande en cours',
+                  actionLabel: 'Marquer livrée',
+                  nextStatus: 'DELIVERED',
+                ),
               ],
             ),
           ),
@@ -660,9 +866,18 @@ class _ArtisanOrdersPanel extends StatelessWidget {
 
 class _ArtisanOrdersList extends ConsumerWidget {
   final String status;
-  final bool canConfirm;
+  final String emptyLabel;
+  final String actionLabel;
+  // Statut visé par le bouton d'action de cette liste — DELIVERED utilise
+  // POST /orders/{id}/mark-delivered, les autres PUT /orders/{id}/status.
+  final String nextStatus;
 
-  const _ArtisanOrdersList({required this.status, required this.canConfirm});
+  const _ArtisanOrdersList({
+    required this.status,
+    required this.emptyLabel,
+    required this.actionLabel,
+    required this.nextStatus,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -674,10 +889,7 @@ class _ArtisanOrdersList extends ConsumerWidget {
       data: (list) {
         if (list.isEmpty) {
           return Center(
-            child: Text(
-              canConfirm ? 'Aucune commande reçue' : 'Aucune commande confirmée',
-              style: const TextStyle(color: AppColors.onSurfaceVariant),
-            ),
+            child: Text(emptyLabel, style: const TextStyle(color: AppColors.onSurfaceVariant)),
           );
         }
         return ListView.separated(
@@ -688,7 +900,9 @@ class _ArtisanOrdersList extends ConsumerWidget {
             final order = (list[i] as Map).cast<String, dynamic>();
             return _ArtisanOrderTile(
               order: order,
-              showConfirmButton: canConfirm,
+              currentStatus: status,
+              actionLabel: actionLabel,
+              nextStatus: nextStatus,
             );
           },
         );
@@ -699,34 +913,46 @@ class _ArtisanOrdersList extends ConsumerWidget {
 
 class _ArtisanOrderTile extends ConsumerStatefulWidget {
   final Map<String, dynamic> order;
-  final bool showConfirmButton;
+  final String currentStatus;
+  final String actionLabel;
+  final String nextStatus;
 
-  const _ArtisanOrderTile({required this.order, required this.showConfirmButton});
+  const _ArtisanOrderTile({
+    required this.order,
+    required this.currentStatus,
+    required this.actionLabel,
+    required this.nextStatus,
+  });
 
   @override
   ConsumerState<_ArtisanOrderTile> createState() => _ArtisanOrderTileState();
 }
 
 class _ArtisanOrderTileState extends ConsumerState<_ArtisanOrderTile> {
-  bool _isConfirming = false;
+  bool _isSubmitting = false;
 
-  Future<void> _confirm() async {
+  Future<void> _performAction() async {
     final orderId = widget.order['id']?.toString();
     if (orderId == null) return;
 
-    setState(() => _isConfirming = true);
+    setState(() => _isSubmitting = true);
     try {
-      final updateStatus = ref.read(updateOrderStatusActionProvider);
-      await updateStatus(orderId, 'CONFIRMED');
-      ref.invalidate(artisanOrdersProvider('PENDING'));
-      ref.invalidate(artisanOrdersProvider('CONFIRMED'));
+      if (widget.nextStatus == 'DELIVERED') {
+        final markDelivered = ref.read(markOrderDeliveredActionProvider);
+        await markDelivered(orderId);
+      } else {
+        final updateStatus = ref.read(updateOrderStatusActionProvider);
+        await updateStatus(orderId, widget.nextStatus);
+      }
+      ref.invalidate(artisanOrdersProvider(widget.currentStatus));
+      ref.invalidate(artisanOrdersProvider(widget.nextStatus));
       if (!mounted) return;
-      showSuccessSnackbar(context, 'Commande confirmée');
+      showSuccessSnackbar(context, 'Commande mise à jour');
     } catch (e) {
       if (!mounted) return;
       showErrorSnackbar(context, 'Erreur: $e');
     } finally {
-      if (mounted) setState(() => _isConfirming = false);
+      if (mounted) setState(() => _isSubmitting = false);
     }
   }
 
@@ -775,13 +1001,12 @@ class _ArtisanOrderTileState extends ConsumerState<_ArtisanOrderTile> {
               ],
             ),
           ),
-          if (widget.showConfirmButton)
-            AppButton(
-              label: _isConfirming ? '...' : 'Confirmer',
-              isSmall: true,
-              isEnabled: !_isConfirming,
-              onPressed: _confirm,
-            ),
+          AppButton(
+            label: _isSubmitting ? '...' : widget.actionLabel,
+            isSmall: true,
+            isEnabled: !_isSubmitting,
+            onPressed: _performAction,
+          ),
         ],
       ),
     );

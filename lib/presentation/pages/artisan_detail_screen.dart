@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
@@ -115,6 +116,24 @@ class _ArtisanDetailScreenState extends ConsumerState<ArtisanDetailScreen>
                   ),
                 ),
                 actions: [
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Material(
+                      shape: const CircleBorder(),
+                      color: AppColors.surface.withValues(alpha: 0.9),
+                      child: InkWell(
+                        onTap: () {
+                          final link =
+                              '${AppConstants.apiBaseUrl}/share/artisan/${widget.artisanId}';
+                          Share.share('$artisanName sur ALONU\n$link');
+                        },
+                        child: const Icon(
+                          Icons.share_outlined,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ),
                   Padding(
                     padding: const EdgeInsets.all(8.0),
                     child: Material(

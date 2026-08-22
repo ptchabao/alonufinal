@@ -7,6 +7,7 @@ import '../../core/theme/app_colors.dart';
 import '../bloc/api_providers.dart';
 import '../bloc/auth_provider.dart';
 import '../widgets/widgets.dart';
+import 'payment_screen.dart';
 
 /// Espace étudiant, branché sur GET /students/me et POST /students.
 /// L'API ne porte ni suivi de progression de cours, ni certificats : seuls
@@ -100,6 +101,11 @@ class _StudentProfileContent extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 24),
+
+          if (profile['subscriptionPaid'] != true) ...[
+            _StudentSubscriptionBanner(studentId: profile['id']?.toString() ?? ''),
+            const SizedBox(height: 24),
+          ],
 
           Text('Maître formateur', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 12),
@@ -222,6 +228,69 @@ class _StudentProfileContent extends ConsumerWidget {
             error: (error, stack) => Text('Impossible de charger les offres: $error'),
           ),
           const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+}
+
+/// Bandeau incitant au paiement de l'abonnement étudiant (subscriptionPaid ==
+/// false), requis par l'API pour la validation admin du profil.
+class _StudentSubscriptionBanner extends ConsumerWidget {
+  final String studentId;
+
+  const _StudentSubscriptionBanner({required this.studentId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.error.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.error.withOpacity(0.4)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.workspace_premium_outlined, color: AppColors.error),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Abonnement non payé',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                const Text('Requis pour la validation de votre profil par un administrateur.'),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          AppTextButton(
+            label: 'Payer',
+            color: AppColors.error,
+            onPressed: () {
+              final initiateSubscription = ref.read(initiateSubscriptionPaymentActionProvider);
+              context.push(
+                '/pay',
+                extra: PaymentScreen(
+                  title: 'Paiement abonnement',
+                  reference: studentId,
+                  amount: null,
+                  initiate: (phone, network) => initiateSubscription(
+                    targetType: 'STUDENT',
+                    targetId: studentId,
+                    phoneNumber: phone,
+                    network: network,
+                  ),
+                  onSuccess: () => context.pop(),
+                ),
+              );
+            },
+          ),
         ],
       ),
     );

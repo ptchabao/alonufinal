@@ -12,6 +12,7 @@ import '../../data/datasources/referral_remote_data_source.dart';
 import '../../data/datasources/student_remote_data_source.dart';
 import '../../data/datasources/dashboard_remote_data_source.dart';
 import '../../data/datasources/preferences_remote_data_source.dart';
+import '../../data/datasources/microfinance_remote_data_source.dart';
 import '../../data/models/artisan_model.dart';
 import '../../domain/entities/artisan.dart' show Realisation;
 import '../../core/services/location_service.dart';
@@ -81,6 +82,12 @@ final dashboardDataSourceProvider = Provider((ref) {
 final preferencesDataSourceProvider = Provider((ref) {
   final dio = ref.watch(dioProvider);
   return PreferencesRemoteDataSourceImpl(dio);
+});
+
+// Microfinance DataSource Provider
+final microfinanceDataSourceProvider = Provider((ref) {
+  final dio = ref.watch(dioProvider);
+  return MicrofinanceRemoteDataSourceImpl(dio);
 });
 
 // Categories Provider
@@ -251,16 +258,21 @@ final orderDetailProvider = FutureProvider.autoDispose.family<dynamic, String>((
   }
 });
 
-// Payment Methods Provider
-final paymentMethodsProvider = FutureProvider.autoDispose<List<dynamic>>((
-  ref,
-) async {
-  final dataSource = ref.watch(paymentDataSourceProvider);
-  try {
-    return await dataSource.getPaymentMethods();
-  } catch (e) {
-    throw Exception('Erreur: ${e.toString()}');
-  }
+// ----- Actions client sur une commande (PUT cancel, POST confirm-delivery/dispute) -----
+
+final cancelOrderActionProvider = Provider<Future<dynamic> Function(String)>((ref) {
+  final dataSource = ref.watch(orderDataSourceProvider);
+  return (orderId) => dataSource.cancelOrder(orderId);
+});
+
+final confirmOrderDeliveryActionProvider = Provider<Future<dynamic> Function(String)>((ref) {
+  final dataSource = ref.watch(orderDataSourceProvider);
+  return (orderId) => dataSource.confirmDelivery(orderId);
+});
+
+final disputeOrderActionProvider = Provider<Future<dynamic> Function(String, String)>((ref) {
+  final dataSource = ref.watch(orderDataSourceProvider);
+  return (orderId, reason) => dataSource.disputeOrder(orderId, reason);
 });
 
 // Create Order Provider (StateNotifierProvider)
@@ -291,45 +303,70 @@ final createOrderProvider =
       (ref) => CreateOrderNotifier(ref.watch(orderDataSourceProvider)),
     );
 
-// Payment Provider (StateNotifierProvider)
-class PaymentNotifier extends StateNotifier<AsyncValue<dynamic>> {
-  final PaymentRemoteDataSource _dataSource;
+// ----- Payments (POST /payments/.../initiate, GET /payments/{id}/status) -----
+// PayGate est asynchrone (push USSD) : chaque initiate* renvoie un paymentId
+// que PaymentScreen suit ensuite par polling via getPaymentStatusActionProvider.
 
-  PaymentNotifier(this._dataSource) : super(const AsyncValue.data(null));
+final initiateOrderPaymentActionProvider = Provider<
+    Future<Map<String, dynamic>> Function(String orderId, String phoneNumber, String network)>((ref) {
+  final dataSource = ref.watch(paymentDataSourceProvider);
+  return (orderId, phoneNumber, network) => dataSource.initiateOrderPayment(
+        orderId,
+        phoneNumber: phoneNumber,
+        network: network,
+      );
+});
 
-  Future<dynamic> initializePayment(Map<String, dynamic> paymentData) async {
-    state = const AsyncValue.loading();
-    try {
-      final result = await _dataSource.initializePayment(paymentData);
-      state = AsyncValue.data(result);
-      return result;
-    } catch (e, st) {
-      state = AsyncValue.error(e.toString(), st);
-      rethrow;
-    }
-  }
+final initiateDonationPaymentActionProvider = Provider<
+    Future<Map<String, dynamic>> Function(String donationId, String phoneNumber, String network)>((ref) {
+  final dataSource = ref.watch(paymentDataSourceProvider);
+  return (donationId, phoneNumber, network) => dataSource.initiateDonationPayment(
+        donationId,
+        phoneNumber: phoneNumber,
+        network: network,
+      );
+});
 
-  Future<dynamic> verifyPayment(String transactionId) async {
-    state = const AsyncValue.loading();
-    try {
-      final result = await _dataSource.verifyPayment(transactionId);
-      state = AsyncValue.data(result);
-      return result;
-    } catch (e, st) {
-      state = AsyncValue.error(e.toString(), st);
-      rethrow;
-    }
-  }
+final initiateSubscriptionPaymentActionProvider = Provider<
+    Future<Map<String, dynamic>> Function({
+      required String targetType,
+      required String targetId,
+      required String phoneNumber,
+      required String network,
+      double? amount,
+    })>((ref) {
+  final dataSource = ref.watch(paymentDataSourceProvider);
+  return ({
+    required targetType,
+    required targetId,
+    required phoneNumber,
+    required network,
+    amount,
+  }) =>
+      dataSource.initiateSubscriptionPayment(
+        targetType: targetType,
+        targetId: targetId,
+        phoneNumber: phoneNumber,
+        network: network,
+        amount: amount,
+      );
+});
 
-  void reset() {
-    state = const AsyncValue.data(null);
-  }
-}
+final initiateMicrofinanceAdhesionPaymentActionProvider = Provider<
+    Future<Map<String, dynamic>> Function(String adhesionId, String phoneNumber, String network)>((ref) {
+  final dataSource = ref.watch(paymentDataSourceProvider);
+  return (adhesionId, phoneNumber, network) => dataSource.initiateMicrofinanceAdhesionPayment(
+        adhesionId,
+        phoneNumber: phoneNumber,
+        network: network,
+      );
+});
 
-final paymentProvider =
-    StateNotifierProvider.autoDispose<PaymentNotifier, AsyncValue<dynamic>>(
-      (ref) => PaymentNotifier(ref.watch(paymentDataSourceProvider)),
-    );
+final getPaymentStatusActionProvider =
+    Provider<Future<Map<String, dynamic>> Function(String)>((ref) {
+  final dataSource = ref.watch(paymentDataSourceProvider);
+  return (paymentId) => dataSource.getPaymentStatus(paymentId);
+});
 
 // ----- Donations (GET /donations/me, /donations/stats, POST /donations) -----
 
@@ -434,3 +471,16 @@ final resetPreferencesActionProvider =
 // Thème effectif de l'app, initialisé à ThemeMode.system et mis à jour
 // depuis les préférences (GET /preferences) ou la feuille de préférences.
 final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.system);
+
+// ----- Microfinance (GET /microfinance/partners, POST /microfinance/adhesions) -----
+
+final microfinancePartnersProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
+  final dataSource = ref.watch(microfinanceDataSourceProvider);
+  return dataSource.getPartners();
+});
+
+final createMicrofinanceAdhesionActionProvider =
+    Provider<Future<Map<String, dynamic>> Function(String)>((ref) {
+  final dataSource = ref.watch(microfinanceDataSourceProvider);
+  return (partnerId) => dataSource.createAdhesion(partnerId);
+});

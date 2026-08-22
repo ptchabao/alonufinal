@@ -287,7 +287,7 @@ class UserRepositoryImpl implements UserRepository {
   @override
   Future<Either<Failure, User>> updateUser(User user) async {
     try {
-      final updated = await remoteDataSource.updateUser(user.id, {
+      final updated = await remoteDataSource.updateMe({
         'nom': user.nom,
         'prenom': user.prenom,
         'email': user.email,

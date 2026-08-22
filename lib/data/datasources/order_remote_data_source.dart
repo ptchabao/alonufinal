@@ -10,6 +10,12 @@ abstract class OrderRemoteDataSource {
   Future<dynamic> updateOrderStatus(String orderId, String status);
   // PUT /orders/{id}/cancel
   Future<dynamic> cancelOrder(String orderId);
+  // POST /orders/{id}/mark-delivered — artisan
+  Future<dynamic> markDelivered(String orderId);
+  // POST /orders/{id}/confirm-delivery — client
+  Future<dynamic> confirmDelivery(String orderId);
+  // POST /orders/{id}/dispute — client
+  Future<dynamic> disputeOrder(String orderId, String reason);
 }
 
 class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
@@ -100,6 +106,55 @@ class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
         return response.data['data'] ?? response.data;
       }
       throw Exception('Erreur lors de l\'annulation');
+    } on DioException catch (e) {
+      throw _handleDioException(e);
+    }
+  }
+
+  @override
+  Future<dynamic> markDelivered(String orderId) async {
+    try {
+      final response = await dio.post(
+        '${AppConstants.apiBaseUrl}${AppConstants.ordersEndpoint}/$orderId/mark-delivered',
+      );
+
+      if (response.statusCode == 200) {
+        return response.data['data'] ?? response.data;
+      }
+      throw Exception('Erreur lors du passage en livrée');
+    } on DioException catch (e) {
+      throw _handleDioException(e);
+    }
+  }
+
+  @override
+  Future<dynamic> confirmDelivery(String orderId) async {
+    try {
+      final response = await dio.post(
+        '${AppConstants.apiBaseUrl}${AppConstants.ordersEndpoint}/$orderId/confirm-delivery',
+      );
+
+      if (response.statusCode == 200) {
+        return response.data['data'] ?? response.data;
+      }
+      throw Exception('Erreur lors de la confirmation de réception');
+    } on DioException catch (e) {
+      throw _handleDioException(e);
+    }
+  }
+
+  @override
+  Future<dynamic> disputeOrder(String orderId, String reason) async {
+    try {
+      final response = await dio.post(
+        '${AppConstants.apiBaseUrl}${AppConstants.ordersEndpoint}/$orderId/dispute',
+        data: {'reason': reason},
+      );
+
+      if (response.statusCode == 200) {
+        return response.data['data'] ?? response.data;
+      }
+      throw Exception('Erreur lors de l\'ouverture du litige');
     } on DioException catch (e) {
       throw _handleDioException(e);
     }

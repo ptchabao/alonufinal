@@ -25,7 +25,8 @@ abstract class AuthRemoteDataSource {
   Future<AuthResponseModel> refreshToken(String refreshToken);
   Future<void> changePassword(String currentPassword, String newPassword);
   Future<UserModel> getCurrentUser();
-  Future<UserModel> updateUser(String userId, Map<String, dynamic> data);
+  // PUT /users/me — PUT /users/{id} est réservé aux admins (voir doc API).
+  Future<UserModel> updateMe(Map<String, dynamic> data);
 }
 
 class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
@@ -169,10 +170,10 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   }
 
   @override
-  Future<UserModel> updateUser(String userId, Map<String, dynamic> data) async {
+  Future<UserModel> updateMe(Map<String, dynamic> data) async {
     try {
       final response = await dio.put(
-        '${AppConstants.apiBaseUrl}/users/$userId',
+        '${AppConstants.apiBaseUrl}${AppConstants.getUserEndpoint}',
         data: data,
       );
       return UserModel.fromJson(response.data as Map<String, dynamic>);
