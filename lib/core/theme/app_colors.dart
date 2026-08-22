@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  // Primary Colors — jaune exact du logo ALONU (échantillonné depuis
-  // assets/images/logo.png), plus proche du doré que l'ancien FACC15.
-  static const Color primary = Color(0xFFFFCE21);
-  static const Color primaryDark = Color(0xFFE3B100);
-  static const Color primaryLight = Color(0xFFFDF6DD);
+  // Primary Colors — vert du logo ALONU (échantillonné depuis
+  // assets/images/logo.png). Anciennement la couleur secondaire ; permutée
+  // avec le jaune à la demande.
+  static const Color primary = Color(0xFF1B5E20);
+  static const Color primaryDark = Color(0xFF0F3D13);
+  static const Color primaryLight = Color(0xFFE8F5E9);
 
-  // Secondary and Accent
-  static const Color secondary = Color(0xFF1B5E20);
+  // Secondary and Accent — jaune exact du logo ALONU (échantillonné depuis
+  // assets/images/logo.png), anciennement la couleur primaire.
+  static const Color secondary = Color(0xFFFFCE21);
   static const Color accent = Color(0xFFC62828);
   static const Color tertiary = Color(0xFF4A4A4A);
 
@@ -23,7 +25,9 @@ class AppColors {
   static const Color info = Color(0xFF1565C0);
 
   // Text Colors
-  static const Color onPrimary = Color(0xFF1A1A1A);
+  // Texte/icônes affichés sur `primary` (désormais un vert foncé) : blanc
+  // requis pour le contraste (l'ancien texte quasi-noir convenait au jaune).
+  static const Color onPrimary = Color(0xFFFFFFFF);
   static const Color onBackground = Color(0xFF1A1A1A);
   static const Color onSurface = Color(0xFF1A1A1A);
   static const Color onSurfaceVariant = Color(0xFF6B6B6B);
